@@ -40,10 +40,22 @@ library:
   source-dirs: src
 
 executables:
-  melange-exe:
-    main:                Main.hs
-    source-dirs:         app
+  migrate:
+    main:                Migrate.hs
+    source-dirs:         app/Migrate
     ghc-options:
+    - -main-is Migrate
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - melange
+
+  server:
+    main:                Server.hs
+    source-dirs:         app/Server
+    ghc-options:
+    - -main-is Server
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
