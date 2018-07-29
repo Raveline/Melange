@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Melange.Model
   (
     Item (..)
@@ -6,17 +7,28 @@ module Melange.Model
   , Board (..)
   ) where
 
-import qualified Data.Text as T
+import qualified Data.Text    as T
 import           Data.Time
+import           Data.UUID
+import qualified Generics.SOP as SOP
+import           GHC.Generics
 
-data Item = ItemQuote Quote | ItemImage Image
+data Item = ItemQuote UUID Quote | ItemImage UUID Image
 
-data Quote = Quote { quoteTitle  :: Maybe T.Text
+data Quote = Quote { quoteId     :: UUID
+                   , quoteTitle  :: Maybe T.Text
                    , content     :: T.Text
                    , quoteSource :: Maybe T.Text }
+  deriving (Show, Generic)
 
-data Image = Image { filepath    :: T.Text
+instance SOP.Generic Quote
+
+data Image = Image { imageId     :: UUID
+                   , filepath    :: T.Text
                    , imageSource :: Maybe T.Text }
+  deriving (Show, Generic)
+
+instance SOP.Generic Image
 
 data Board = Board { boardTitle :: Maybe T.Text
                    , date       :: UTCTime
