@@ -21,13 +21,18 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- bytestring
 - containers
+- generics-sop
+- mtl
 - postgresql-simple
 - servant
 - servant-server
 - squeal-postgresql
 - text
 - time
+- transformers-base
+- uuid
 - wai
 - wai-extra
 
