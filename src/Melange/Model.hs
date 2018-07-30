@@ -8,12 +8,13 @@ module Melange.Model
   ) where
 
 import qualified Data.Text    as T
-import           Data.Time
-import           Data.UUID
+import           Data.Time    (Day)
+import           Data.UUID    (UUID)
 import qualified Generics.SOP as SOP
 import           GHC.Generics
 
 data Item = ItemQuote UUID Quote | ItemImage UUID Image
+  deriving (Show)
 
 data Quote = Quote { quoteId     :: UUID
                    , quoteTitle  :: Maybe T.Text
@@ -30,6 +31,8 @@ data Image = Image { imageId     :: UUID
 
 instance SOP.Generic Image
 
-data Board = Board { boardTitle :: Maybe T.Text
-                   , date       :: UTCTime
+data Board = Board { boardId    :: UUID
+                   , boardTitle :: Maybe T.Text
+                   , date       :: Day
                    , items      :: [Item] }
+  deriving (Show)

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators    #-}
 module Melange.DB.Insertions
@@ -9,10 +10,10 @@ module Melange.DB.Insertions
 
 import           Control.Monad            (void)
 import qualified GHC.Generics             as GHC
-import           Melange.DB.Schema
-import           Melange.Model
+import           Melange.DB.Schema        (Schema)
+import           Melange.Model            (Board (..), Image (..), Item (..),
+                                           Quote (..))
 import           Squeal.PostgreSQL
-import           Squeal.PostgreSQL.Render
 
 insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext ] '[]
 insertQuote = insertRow #quotes
@@ -47,6 +48,14 @@ insertImageItem = insertRow #items
     :* Nil )
     OnConflictDoNothing (Returning Nil)
 
+insertBoard :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGdate ] '[]
+insertBoard = insertRow #boards
+    ( Set (param @1) `As` #board_id
+    :* Set (param @2) `As` #title
+    :* Set (param @3) `As` #date
+    :* Nil )
+    OnConflictDoNothing (Returning Nil)
+
 newItem :: Item -> PQ Schema Schema IO ()
 newItem (ItemQuote uuid q) =
   void $ manipulateParams insertQuote q
@@ -54,3 +63,7 @@ newItem (ItemQuote uuid q) =
 newItem (ItemImage uuid i) =
   void $ manipulateParams insertImage i
         >> manipulateParams insertImageItem (uuid, Just $ imageId i)
+
+newBoard :: Board -> PQ Schema Schema IO ()
+newBoard Board{..} =
+  void $ manipulateParams insertBoard (boardId, boardTitle, date)
