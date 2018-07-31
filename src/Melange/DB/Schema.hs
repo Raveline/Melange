@@ -5,6 +5,11 @@
 module Melange.DB.Schema
   (
     Schema
+  , BoardCols
+  , QuoteCols
+  , ImageCols
+  , ItemCols
+  , BoardItemCols
   , setup
   , teardown
   , initial
@@ -21,44 +26,55 @@ import           Squeal.PostgreSQL
 import           Squeal.PostgreSQL.Migration
 import           Squeal.PostgreSQL.Render
 
-type Schema =
-  '[ "quotes" ::: 'Table (
-      '[ "pk_quote" ::: 'PrimaryKey '["quote_id"] ] :=>
+type BoardCols =
+      '[ "board_id" ::: 'NoDef :=> 'NotNull 'PGuuid
+       , "title"    ::: 'NoDef :=> 'Null 'PGtext
+       , "date"     ::: 'NoDef :=> 'NotNull 'PGdate
+       ]
+
+type QuoteCols =
       '[ "quote_id" ::: 'NoDef :=> 'NotNull 'PGuuid
        , "quote_title" ::: 'NoDef :=> 'Null 'PGtext
        , "content"   ::: 'NoDef :=> 'NotNull 'PGtext
        , "quote_source" ::: 'NoDef :=> 'Null 'PGtext
-       ])
-   , "images" ::: 'Table (
-      '[ "pk_image" ::: 'PrimaryKey '["image_id"] ] :=>
+       ]
+
+type ImageCols =
       '[ "image_id" ::: 'NoDef :=> 'NotNull 'PGuuid
        , "filepath"   :::   'NoDef :=> 'NotNull 'PGtext
        , "image_source" ::: 'NoDef :=> 'Null 'PGtext
-       ])
+       ]
+
+type ItemCols =
+      '[ "item_id" ::: 'NoDef :=> 'NotNull 'PGuuid
+       , "quote_id" ::: 'NoDef :=> 'Null 'PGuuid
+       , "image_id" ::: 'NoDef :=> 'Null 'PGuuid
+       ]
+
+type BoardItemCols =
+      '[ "board_id" ::: 'NoDef :=> 'NotNull 'PGuuid
+       , "item_id" ::: 'NoDef  :=> 'NotNull 'PGuuid
+       , "order" ::: 'NoDef :=> 'NotNull 'PGint2
+       ]
+
+type Schema =
+  '[ "quotes" ::: 'Table (
+      '[ "pk_quote" ::: 'PrimaryKey '["quote_id"] ] :=> QuoteCols)
+   , "images" ::: 'Table (
+      '[ "pk_image" ::: 'PrimaryKey '["image_id"] ] :=> ImageCols)
    , "items" ::: 'Table (
        '[ "pk_item" ::: 'PrimaryKey '["item_id"]
         , "fk_quote_id" ::: 'ForeignKey '["quote_id"] "quotes" '["quote_id"]
         , "fk_image_id" ::: 'ForeignKey '["image_id"] "images" '["image_id"]
-        ] :=>
-       '[ "item_id" ::: 'NoDef :=> 'NotNull 'PGuuid
-        , "quote_id" ::: 'NoDef :=> 'Null 'PGuuid
-        , "image_id" ::: 'NoDef :=> 'Null 'PGuuid
-        ])
+        ] :=> ItemCols)
    , "boards" ::: 'Table (
-      '[ "pk_board" ::: 'PrimaryKey '["board_id"] ] :=>
-      '[ "board_id" ::: 'NoDef :=> 'NotNull 'PGuuid
-       , "title"    ::: 'NoDef :=> 'Null 'PGtext
-       , "date"     ::: 'NoDef :=> 'NotNull 'PGdate
-       ])
+      '[ "pk_board" ::: 'PrimaryKey '["board_id"] ] :=> BoardCols)
    , "board_items" ::: 'Table (
        '[ "pk_board_item" ::: 'PrimaryKey '["board_id", "item_id"]
         , "fk_board_id" ::: 'ForeignKey '["board_id"] "boards" '["board_id"]
         , "fk_quote_id" ::: 'ForeignKey '["item_id"] "items" '["item_id"]
-        ] :=>
-       '[ "board_id" ::: 'NoDef :=> 'NotNull 'PGuuid
-        , "item_id" ::: 'NoDef  :=> 'NotNull 'PGuuid
-        , "order" ::: 'NoDef :=> 'NotNull 'PGint2
-        ])
+        ] :=> BoardItemCols
+       )
    ]
 
 initial :: Definition '[] Schema
@@ -118,8 +134,8 @@ setup =
 
 teardown :: Definition Schema '[]
 teardown =
-  dropTable #quotes
-  >>> dropTable #images
+  dropTable #board_items
   >>> dropTable #items
   >>> dropTable #boards
-  >>> dropTable #board_items
+  >>> dropTable #quotes
+  >>> dropTable #images
