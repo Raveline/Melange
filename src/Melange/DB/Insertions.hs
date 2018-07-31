@@ -6,13 +6,16 @@
 module Melange.DB.Insertions
   (
     newItem
+  , newBoard
   ) where
 
-import           Control.Monad            (void)
-import qualified GHC.Generics             as GHC
-import           Melange.DB.Schema        (Schema)
-import           Melange.Model            (Board (..), Image (..), Item (..),
-                                           Quote (..))
+import           Control.Monad     (void)
+import           Data.Foldable     (traverse_)
+import           Data.Int
+import qualified GHC.Generics      as GHC
+import           Melange.DB.Schema (Schema)
+import           Melange.Model     (Board (..), Image (..), Item (..),
+                                    Quote (..), itemId)
 import           Squeal.PostgreSQL
 
 insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext ] '[]
@@ -56,6 +59,17 @@ insertBoard = insertRow #boards
     :* Nil )
     OnConflictDoNothing (Returning Nil)
 
+insertBoardItem :: Manipulation Schema '[ 'NotNull 'PGuuid, 'NotNull 'PGuuid, 'NotNull 'PGint2] '[]
+insertBoardItem = insertRow #board_items
+    ( Set (param @1) `As` #board_id
+    :* Set (param @2) `As` #item_id
+    :* Set (param @3) `As` #order
+    :* Nil )
+    OnConflictDoNothing (Returning Nil)
+
+deleteBoardItems :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
+deleteBoardItems = deleteFrom #board_items (#board_id .== param @1) (Returning Nil)
+
 newItem :: Item -> PQ Schema Schema IO ()
 newItem (ItemQuote uuid q) =
   void $ manipulateParams insertQuote q
@@ -65,5 +79,15 @@ newItem (ItemImage uuid i) =
         >> manipulateParams insertImageItem (uuid, Just $ imageId i)
 
 newBoard :: Board -> PQ Schema Schema IO ()
-newBoard Board{..} =
-  void $ manipulateParams insertBoard (boardId, boardTitle, date)
+newBoard b@Board{..} =
+  void $ traverse_ newItem items
+      >> manipulateParams insertBoard (boardId, boardTitle, date)
+      >> manipulateParams deleteBoardItems (Only boardId)
+      >> associateBoardAndItems b
+
+associateBoardAndItems :: Board -> PQ Schema Schema IO ()
+associateBoardAndItems Board{..} =
+  let itemsUUID = itemId <$> items
+      counting = [1..] :: [Int16]
+      params = zip3 (repeat boardId) itemsUUID counting
+  in void $ traversePrepared insertBoardItem params
