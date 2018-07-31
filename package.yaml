@@ -67,8 +67,12 @@ tests:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
+    - -main-is Spec
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
     - melange
+    - hspec
+    - time
+    - uuid
