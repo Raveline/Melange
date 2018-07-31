@@ -5,6 +5,7 @@ module Melange.Model
   , Quote (..)
   , Image (..)
   , Board (..)
+  , itemId
   ) where
 
 import qualified Data.Text    as T
@@ -15,6 +16,10 @@ import           GHC.Generics
 
 data Item = ItemQuote UUID Quote | ItemImage UUID Image
   deriving (Show)
+
+itemId :: Item -> UUID
+itemId (ItemQuote u _) = u
+itemId (ItemImage u _) = u
 
 data Quote = Quote { quoteId     :: UUID
                    , quoteTitle  :: Maybe T.Text
