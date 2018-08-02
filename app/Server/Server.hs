@@ -1,4 +1,5 @@
 module Server where
+import Melange.Service
 
 main :: IO ()
-main = putStrLn "Not implemented"
+main = runServer
