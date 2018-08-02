@@ -7,6 +7,7 @@ import           Data.Time
 import           Data.UUID.V4                (nextRandom)
 import           Melange.DB.Schema
 import           Melange.DB.Insertions
+import           Melange.DB.Selections
 import           Melange.Model
 import           Squeal.PostgreSQL
 import           Squeal.PostgreSQL.Migration
@@ -50,10 +51,15 @@ main = hspec $
   describe "Make sure one can insert a board" $
     it "Simply insert a board" $ do
       board <- fixtureBoard
+
       void . withConnection connectionString $
         migrateUp (single setup)
-      void . withConnection connectionString $
+
+      pickedBoard <- withConnection connectionString $ do
         newBoard board
+        getBoardById (boardId board)
+      pickedBoard `shouldBe` Just board
+
       void . withConnection connectionString $
         migrateDown $ single setup
 
