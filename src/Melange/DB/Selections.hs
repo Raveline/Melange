@@ -10,15 +10,15 @@ module Melange.DB.Selections
     getBoardById
   ) where
 
-import           Data.Maybe        (catMaybes)
-import           Data.Text         (Text)
-import           Data.Time         (Day)
-import           Data.UUID         (UUID)
-import qualified Generics.SOP      as SOP
-import           GHC.Generics      hiding (from)
+import           Data.Maybe             (catMaybes)
+import           Data.Text              (Text)
+import           Data.Time              (Day)
+import           Data.UUID              (UUID)
+import qualified Generics.SOP           as SOP
+import           GHC.Generics           hiding (from)
 import           Melange.DB.Schema
-import           Melange.Model     (Board (..), Image (..), Item (..),
-                                    Quote (..), itemId)
+import           Melange.Model.Internal (Board (..), Image (..), Item (..),
+                                         Quote (..), itemId)
 import           Squeal.PostgreSQL
 
 type BoardQueryResult =

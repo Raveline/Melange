@@ -9,13 +9,13 @@ module Melange.DB.Insertions
   , newBoard
   ) where
 
-import           Control.Monad     (void)
-import           Data.Foldable     (traverse_)
+import           Control.Monad          (void)
+import           Data.Foldable          (traverse_)
 import           Data.Int
-import qualified GHC.Generics      as GHC
-import           Melange.DB.Schema (Schema)
-import           Melange.Model     (Board (..), Image (..), Item (..),
-                                    Quote (..), itemId)
+import qualified GHC.Generics           as GHC
+import           Melange.DB.Schema      (Schema)
+import           Melange.Model.Internal (Board (..), Image (..), Item (..),
+                                         Quote (..), itemId)
 import           Squeal.PostgreSQL
 
 insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext ] '[]

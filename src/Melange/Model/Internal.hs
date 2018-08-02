@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Melange.Model
+module Melange.Model.Internal
   (
     Item (..)
   , Quote (..)
@@ -15,7 +15,7 @@ import qualified Generics.SOP as SOP
 import           GHC.Generics
 
 data Item = ItemQuote UUID Quote | ItemImage UUID Image
-  deriving (Show)
+  deriving (Show, Eq)
 
 itemId :: Item -> UUID
 itemId (ItemQuote u _) = u
@@ -25,14 +25,14 @@ data Quote = Quote { quoteId     :: UUID
                    , quoteTitle  :: Maybe T.Text
                    , content     :: T.Text
                    , quoteSource :: Maybe T.Text }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 instance SOP.Generic Quote
 
 data Image = Image { imageId     :: UUID
                    , filepath    :: T.Text
                    , imageSource :: Maybe T.Text }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 instance SOP.Generic Image
 
@@ -40,4 +40,4 @@ data Board = Board { boardId    :: UUID
                    , boardTitle :: Maybe T.Text
                    , date       :: Day
                    , items      :: [Item] }
-  deriving (Show)
+           deriving (Show, Generic, Eq)
