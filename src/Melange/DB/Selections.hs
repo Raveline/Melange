@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeOperators    #-}
 module Melange.DB.Selections
   (
-    getBoardById
+    getBoardByDay
   ) where
 
 import           Data.Maybe             (catMaybes)
@@ -73,8 +73,8 @@ joiner rows@((b,_):_) =
 
 type BoardQuery params = Query Schema params BoardQueryResult
 
-selectBoardById :: BoardQuery '[ 'NotNull 'PGuuid ]
-selectBoardById = select
+selectBoardByDay :: BoardQuery '[ 'NotNull 'PGdate ]
+selectBoardByDay = select
   (  #b ! #board_id `As` #boardId
      :* #b ! #title
      :* #b ! #date
@@ -92,9 +92,9 @@ selectBoardById = select
           & innerJoin (table (#items `As` #it)) (#it ! #item_id .== #bi ! #item_id)
           & leftOuterJoin (table (#quotes `As` #q)) (fromNull false (#it ! #quote_id .== notNull (#q ! #quote_id)))
           & leftOuterJoin (table (#images `As` #im)) (fromNull false (#it ! #image_id .== notNull (#im ! #image_id))))
-    & where_ (#b ! #board_id .== param @1))
+    & where_ (#b ! #date .== param @1))
 
-getBoardById :: UUID -> PQ Schema Schema IO (Maybe Board)
-getBoardById boardId = do
-  res <- runQueryParams selectBoardById (Only boardId)
+getBoardByDay :: Day -> PQ Schema Schema IO (Maybe Board)
+getBoardByDay day = do
+  res <- runQueryParams selectBoardByDay (Only day)
   joiner . fmap splitter <$> getRows res
