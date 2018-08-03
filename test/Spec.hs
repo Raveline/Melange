@@ -2,14 +2,16 @@
 module Spec where
 
 import           Control.Monad               (void)
+import           Control.Monad.IO.Class      (liftIO)
 import           Data.ByteString.Char8       (ByteString)
 import           Data.Time
 import           Data.UUID.V4                (nextRandom)
-import           Melange.DB.Schema
 import           Melange.DB.Insertions
+import           Melange.DB.Schema
 import           Melange.DB.Selections
-import           Melange.Model
-import           Squeal.PostgreSQL
+import           Melange.Model               (internalBoardToExternal)
+import           Melange.Model.Internal
+import           Squeal.PostgreSQL           hiding (date)
 import           Squeal.PostgreSQL.Migration
 import           Test.Hspec
 
@@ -46,20 +48,16 @@ fixtureBoard = do
 connectionString :: ByteString
 connectionString = "host=localhost port=5432 dbname=melangetest user=melange password=melange"
 
+setupDB = void . withConnection connectionString $ migrateUp $ single setup
+dropDB = void . withConnection connectionString $ migrateDown $ single setup
+
 main :: IO ()
-main = hspec $
+main = hspec $ before_ setupDB $ after_ dropDB $
   describe "Make sure one can insert a board" $
     it "Simply insert a board" $ do
       board <- fixtureBoard
-
-      void . withConnection connectionString $
-        migrateUp (single setup)
-
       pickedBoard <- withConnection connectionString $ do
         newBoard board
-        getBoardById (boardId board)
-      pickedBoard `shouldBe` Just board
-
-      void . withConnection connectionString $
-        migrateDown $ single setup
+        getBoardByDay (date board)
+      pickedBoard `shouldBe` pure board
 
