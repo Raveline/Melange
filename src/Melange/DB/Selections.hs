@@ -10,16 +10,21 @@ module Melange.DB.Selections
     getBoardByDay
   ) where
 
-import           Data.Maybe             (catMaybes)
-import           Data.Text              (Text)
-import           Data.Time              (Day)
-import           Data.UUID              (UUID)
-import qualified Generics.SOP           as SOP
-import           GHC.Generics           hiding (from)
+import           Control.Monad.Base
+import           Control.Monad.IO.Class      (MonadIO)
+import           Control.Monad.Trans.Control
+import           Data.Maybe                  (catMaybes)
+import           Data.Text                   (Text)
+import           Data.Time                   (Day)
+import           Data.UUID                   (UUID)
+import           Debug.Trace
+import qualified Generics.SOP                as SOP
+import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
-import           Melange.Model.Internal (Board (..), Image (..), Item (..),
-                                         Quote (..), itemId)
+import           Melange.Model.Internal      (Board (..), Image (..), Item (..),
+                                              Quote (..), itemId)
 import           Squeal.PostgreSQL
+import           Squeal.PostgreSQL.Pool
 
 type BoardQueryResult =
   [
@@ -48,13 +53,13 @@ data BoardQueryRow = BoardQueryRow
   , imageId     :: Maybe UUID
   , filepath    :: Maybe Text
   , imageSource :: Maybe Text }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 instance SOP.Generic BoardQueryRow
 instance SOP.HasDatatypeInfo BoardQueryRow
 
 splitter :: BoardQueryRow -> (Board, (Maybe Item, Maybe Item))
-splitter BoardQueryRow{..} =
+splitter bqr@BoardQueryRow{..} =
   let board = Board boardId title date []
       quote =
         ItemQuote <$> pure itemId
@@ -62,7 +67,7 @@ splitter BoardQueryRow{..} =
       image =
         ItemImage <$> pure itemId
                   <*> (Image <$> imageId <*> filepath <*> pure imageSource)
-  in (board, (quote, image))
+  in traceShow bqr $ (board, (quote, image))
 
 joiner :: [(Board, (Maybe Item, Maybe Item))] -> Maybe Board
 joiner [] = Nothing
@@ -94,7 +99,7 @@ selectBoardByDay = select
           & leftOuterJoin (table (#images `As` #im)) (fromNull false (#it ! #image_id .== notNull (#im ! #image_id))))
     & where_ (#b ! #date .== param @1))
 
-getBoardByDay :: Day -> PQ Schema Schema IO (Maybe Board)
+getBoardByDay :: (MonadBaseControl IO m, MonadPQ Schema m) => Day -> m (Maybe Board)
 getBoardByDay day = do
   res <- runQueryParams selectBoardByDay (Only day)
   joiner . fmap splitter <$> getRows res

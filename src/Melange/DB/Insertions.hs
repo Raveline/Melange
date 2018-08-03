@@ -3,12 +3,14 @@
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators    #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Melange.DB.Insertions
   (
     newItem
   , newBoard
   ) where
 
+import           Control.Monad.Trans.Control
 import           Control.Monad          (void)
 import           Data.Foldable          (traverse_)
 import           Data.Int
@@ -70,7 +72,7 @@ insertBoardItem = insertRow #board_items
 deleteBoardItems :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
 deleteBoardItems = deleteFrom #board_items (#board_id .== param @1) (Returning Nil)
 
-newItem :: Item -> PQ Schema Schema IO ()
+newItem :: (MonadBaseControl IO m, MonadPQ Schema m) => Item -> m ()
 newItem (ItemQuote uuid q) =
   void $ manipulateParams insertQuote q
         >> manipulateParams insertQuoteItem (uuid, Just $ quoteId q)
@@ -78,14 +80,14 @@ newItem (ItemImage uuid i) =
   void $ manipulateParams insertImage i
         >> manipulateParams insertImageItem (uuid, Just $ imageId i)
 
-newBoard :: Board -> PQ Schema Schema IO ()
+newBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => Board -> m ()
 newBoard b@Board{..} =
   void $ traverse_ newItem items
       >> manipulateParams insertBoard (boardId, boardTitle, date)
       >> manipulateParams deleteBoardItems (Only boardId)
       >> associateBoardAndItems b
 
-associateBoardAndItems :: Board -> PQ Schema Schema IO ()
+associateBoardAndItems :: (MonadBaseControl IO m, MonadPQ Schema m) => Board -> m ()
 associateBoardAndItems Board{..} =
   let itemsUUID = itemId <$> items
       counting = [1..] :: [Int16]

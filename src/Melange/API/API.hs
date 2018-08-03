@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
@@ -10,11 +11,18 @@ module Melange.API.API
   , MelangePool
   ) where
 
-import           Control.Monad.Reader       (Reader, runReader)
+import           Control.Monad               ((>=>))
+import           Control.Monad.Base
+import           Control.Monad.IO.Class      (liftIO)
+import           Control.Monad.Reader        (ReaderT, ask, runReaderT)
+import           Control.Monad.Trans.Control
 import           Data.Proxy
 import           Data.Time
 import           Generics.SOP.BasicFunctors
+import           Melange.DB.Insertions
 import           Melange.DB.Schema
+import           Melange.DB.Selections
+import           Melange.Model
 import           Melange.Model.External
 import           Servant
 import           Servant.Server
@@ -22,7 +30,12 @@ import           Squeal.PostgreSQL.Pool
 import           Squeal.PostgreSQL.PQ
 
 type MelangePool = Pool (K Connection Schema)
-type MelangeHandler a = Reader MelangePool a
+type MelangeHandler = ReaderT MelangePool Handler
+
+withPool :: PoolPQ Schema IO a -> MelangeHandler a
+withPool q = do
+  pool <- ask
+  liftIO $ runPoolPQ q pool
 
 type API =
   "melange" :> ("boards" :> (NewBoard :<|> GetBoards))
@@ -30,7 +43,7 @@ type API =
 
 type NewBoard = ReqBody '[JSON] Board :> PostNoContent '[JSON] NoContent
 type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] [Board]
-type GetBoard = Get '[JSON] Board
+type GetBoard = Get '[JSON] (Maybe Board)
 type PatchBoard = ReqBody '[JSON] Board :> PatchNoContent '[JSON] NoContent
 type DeleteBoard = DeleteNoContent '[JSON] NoContent
 
@@ -39,19 +52,22 @@ melangeAPI = Proxy
 
 server :: MelangePool -> Server API
 server pool =
-  let nat x = pure $ runReader x pool
+  let nat x = runReaderT x pool
       plural = (addBoard :<|> getBoards)
       singular day = (getBoard day :<|> patchBoard day :<|> deleteBoard day)
   in hoistServer melangeAPI nat (plural :<|> singular)
 
 addBoard :: Board -> MelangeHandler NoContent
-addBoard _ = pure NoContent
+addBoard b =
+  (externalBoardToInternal b >>= withPool . newBoard)
+  >> pure NoContent
 
 getBoards :: Int -> MelangeHandler [Board]
 getBoards = undefined
 
-getBoard :: Day -> MelangeHandler Board
-getBoard = undefined
+getBoard :: Day -> MelangeHandler (Maybe Board)
+getBoard =
+  (fmap . fmap) internalBoardToExternal . withPool . getBoardByDay
 
 patchBoard :: Day -> Board -> MelangeHandler NoContent
 patchBoard _ _ = pure NoContent

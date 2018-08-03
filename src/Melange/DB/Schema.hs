@@ -68,7 +68,9 @@ type Schema =
         , "fk_image_id" ::: 'ForeignKey '["image_id"] "images" '["image_id"]
         ] :=> ItemCols)
    , "boards" ::: 'Table (
-      '[ "pk_board" ::: 'PrimaryKey '["board_id"] ] :=> BoardCols)
+      '[ "pk_board" ::: 'PrimaryKey '["board_id"]
+       , "unique_dates" ::: 'Unique '["date"]
+       ] :=> BoardCols)
    , "board_items" ::: 'Table (
        '[ "pk_board_item" ::: 'PrimaryKey '["board_id", "item_id"]
         , "fk_board_id" ::: 'ForeignKey '["board_id"] "boards" '["board_id"]
@@ -112,7 +114,10 @@ initial =
         :* (date & notNullable) `As` #date
         :* Nil
       )
-      ( primaryKey #board_id `As` #pk_board :* Nil )
+      ( primaryKey #board_id `As` #pk_board
+        :* unique #date `As` #unique_dates
+        :* Nil
+      )
     >>> createTable #board_items
       (    (uuid & notNullable) `As` #board_id
         :* (uuid & notNullable) `As` #item_id
