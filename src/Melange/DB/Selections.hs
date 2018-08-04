@@ -1,12 +1,12 @@
-{-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE OverloadedLabels      #-}
-{-# LANGUAGE RecordWildCards       #-}
-{-# LANGUAGE TypeApplications      #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE TypeInType            #-}
-{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE DataKinds        #-}
+{-# LANGUAGE DeriveGeneric    #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeInType       #-}
+{-# LANGUAGE TypeOperators    #-}
 module Melange.DB.Selections
   (
     getBoardByDay
@@ -18,13 +18,12 @@ import           Data.Maybe                  (catMaybes)
 import           Data.Text                   (Text)
 import           Data.Time                   (Day)
 import           Data.UUID                   (UUID)
-import           Debug.Trace
 import qualified Generics.SOP                as SOP
 import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
 import           Melange.Model.Internal      (Board (..), Image (..), Item (..),
                                               Quote (..))
-import           Squeal.PostgreSQL
+import           Squeal.PostgreSQL           hiding (date)
 
 type BoardQueryResult =
   [
@@ -59,7 +58,7 @@ instance SOP.Generic BoardQueryRow
 instance SOP.HasDatatypeInfo BoardQueryRow
 
 splitter :: BoardQueryRow -> (Board, (Maybe Item, Maybe Item))
-splitter bqr@BoardQueryRow{..} =
+splitter BoardQueryRow{..} =
   let board = Board boardId title date []
       quote =
         ItemQuote <$> pure itemId
@@ -67,7 +66,7 @@ splitter bqr@BoardQueryRow{..} =
       image =
         ItemImage <$> pure itemId
                   <*> (Image <$> imageId <*> filepath <*> pure imageSource)
-  in traceShow bqr $ (board, (quote, image))
+  in (board, (quote, image))
 
 joiner :: [(Board, (Maybe Item, Maybe Item))] -> Maybe Board
 joiner [] = Nothing
@@ -78,8 +77,7 @@ joiner rows@((b,_):_) =
 
 type BoardQuery params = Query Schema params BoardQueryResult
 
-type family BoardSelection :: RelationsType where
-  BoardSelection  =
+type  BoardSelection  =
     '[
      "b" :::
       '["board_id" ::: 'NotNull 'PGuuid,
@@ -112,7 +110,7 @@ boardTables =
     & leftOuterJoin (table (#quotes `As` #q)) (fromNull false (#it ! #quote_id .== notNull (#q ! #quote_id)))
     & leftOuterJoin (table (#images `As` #im)) (fromNull false (#it ! #image_id .== notNull (#im ! #image_id)))
 
-boardFields :: NP (Aliased (Expression Schema BoardSelection 'Ungrouped param)) BoardQueryResult
+boardFields :: NP (Aliased (Expression Schema (Join BoardSelection a) 'Ungrouped param)) BoardQueryResult
 boardFields =
      #b ! #board_id `As` #boardId
      :* #b ! #title
@@ -133,12 +131,20 @@ selectBoardByDay = select
   (from boardTables
     & where_ (#b ! #date .== param @1))
 
+latestBoardId :: Query Schema '[] '["maxDate" ::: 'NotNull 'PGdate ]
+latestBoardId =
+  select
+    ( max_ (#boards ! #date) `As` #maxDate
+     :* Nil
+    )
+    (from (table #boards) & groupBy Nil)
+
 selectLatestBoard :: BoardQuery '[]
 selectLatestBoard = select
   boardFields
-  (from boardTables
-  & orderBy [#b ! #date & Desc]
-  & limit 1)
+  (from (boardTables
+    & innerJoin (subquery (latestBoardId `As` #lbi)) (#b ! #date .== #lbi ! #maxDate))
+  )
 
 getBoardByDay :: (MonadBaseControl IO m, MonadPQ Schema m) => Day -> m (Maybe Board)
 getBoardByDay day = do
