@@ -38,6 +38,7 @@ dependencies:
 - transformers-base
 - uuid
 - wai
+- wai-cors
 - wai-extra
 - warp
 
