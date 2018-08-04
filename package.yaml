@@ -28,6 +28,7 @@ dependencies:
 - generics-sop
 - mtl
 - monad-control
+- http-media
 - postgresql-simple
 - servant
 - servant-server
@@ -42,6 +43,9 @@ dependencies:
 
 library:
   source-dirs: src
+  ghc-options:
+    - -Wall
+
 
 executables:
   migrate:
