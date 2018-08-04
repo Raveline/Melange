@@ -1,17 +1,18 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE DeriveGeneric    #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators    #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE OverloadedLabels      #-}
+{-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeInType            #-}
+{-# LANGUAGE TypeOperators         #-}
 module Melange.DB.Selections
   (
     getBoardByDay
+  , getLatestBoard
   ) where
 
-import           Control.Monad.Base
-import           Control.Monad.IO.Class      (MonadIO)
 import           Control.Monad.Trans.Control
 import           Data.Maybe                  (catMaybes)
 import           Data.Text                   (Text)
@@ -22,9 +23,8 @@ import qualified Generics.SOP                as SOP
 import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
 import           Melange.Model.Internal      (Board (..), Image (..), Item (..),
-                                              Quote (..), itemId)
+                                              Quote (..))
 import           Squeal.PostgreSQL
-import           Squeal.PostgreSQL.Pool
 
 type BoardQueryResult =
   [
@@ -78,9 +78,43 @@ joiner rows@((b,_):_) =
 
 type BoardQuery params = Query Schema params BoardQueryResult
 
-selectBoardByDay :: BoardQuery '[ 'NotNull 'PGdate ]
-selectBoardByDay = select
-  (  #b ! #board_id `As` #boardId
+type family BoardSelection :: RelationsType where
+  BoardSelection  =
+    '[
+     "b" :::
+      '["board_id" ::: 'NotNull 'PGuuid,
+        "title" ::: 'Null 'PGtext,
+        "date" ::: 'NotNull 'PGdate]
+    , "bi" :::
+      '["board_id" ::: 'NotNull 'PGuuid
+       , "item_id" ::: 'NotNull 'PGuuid
+       , "order" ::: 'NotNull 'PGint2]
+    , "it" :::
+      '["item_id" ::: 'NotNull 'PGuuid
+       , "quote_id" ::: 'Null 'PGuuid
+       , "image_id" ::: 'Null 'PGuuid]
+    , "q" :::
+      '[ "quote_id" ::: 'Null 'PGuuid
+       , "quote_title" ::: 'Null 'PGtext
+       , "content" ::: 'Null 'PGtext
+       , "quote_source" ::: 'Null 'PGtext]
+    , "im" :::
+      '["image_id" ::: 'Null 'PGuuid
+       , "filepath" ::: 'Null 'PGtext
+       , "image_source" ::: 'Null 'PGtext]
+    ]
+
+boardTables :: FromClause Schema (param :: [NullityType]) BoardSelection
+boardTables =
+  table (#boards `As` #b)
+    & innerJoin (table (#board_items `As` #bi)) (#b ! #board_id .== #bi ! #board_id)
+    & innerJoin (table (#items `As` #it)) (#it ! #item_id .== #bi ! #item_id)
+    & leftOuterJoin (table (#quotes `As` #q)) (fromNull false (#it ! #quote_id .== notNull (#q ! #quote_id)))
+    & leftOuterJoin (table (#images `As` #im)) (fromNull false (#it ! #image_id .== notNull (#im ! #image_id)))
+
+boardFields :: NP (Aliased (Expression Schema BoardSelection 'Ungrouped param)) BoardQueryResult
+boardFields =
+     #b ! #board_id `As` #boardId
      :* #b ! #title
      :* #b ! #date
      :* #it ! #item_id `As` #itemId
@@ -91,15 +125,27 @@ selectBoardByDay = select
      :* #im ! #image_id `As` #imageId
      :* #im ! #filepath
      :* #im ! #image_source `As` #imageSource
-     :* Nil)
-  (from (table (#boards `As` #b)
-          & innerJoin (table (#board_items `As` #bi)) (#b ! #board_id .== #bi ! #board_id)
-          & innerJoin (table (#items `As` #it)) (#it ! #item_id .== #bi ! #item_id)
-          & leftOuterJoin (table (#quotes `As` #q)) (fromNull false (#it ! #quote_id .== notNull (#q ! #quote_id)))
-          & leftOuterJoin (table (#images `As` #im)) (fromNull false (#it ! #image_id .== notNull (#im ! #image_id))))
+     :* Nil
+
+selectBoardByDay :: BoardQuery '[ 'NotNull 'PGdate ]
+selectBoardByDay = select
+  boardFields
+  (from boardTables
     & where_ (#b ! #date .== param @1))
+
+selectLatestBoard :: BoardQuery '[]
+selectLatestBoard = select
+  boardFields
+  (from boardTables
+  & orderBy [#b ! #date & Desc]
+  & limit 1)
 
 getBoardByDay :: (MonadBaseControl IO m, MonadPQ Schema m) => Day -> m (Maybe Board)
 getBoardByDay day = do
   res <- runQueryParams selectBoardByDay (Only day)
+  joiner . fmap splitter <$> getRows res
+
+getLatestBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => m (Maybe Board)
+getLatestBoard = do
+  res <- runQueryParams selectLatestBoard ()
   joiner . fmap splitter <$> getRows res
