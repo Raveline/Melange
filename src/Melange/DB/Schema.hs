@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedLabels  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE TypeInType        #-}
 {-# LANGUAGE TypeOperators     #-}
 module Melange.DB.Schema
   (
@@ -16,15 +18,8 @@ module Melange.DB.Schema
   ) where
 
 import           Control.Monad               (void)
-import           Control.Monad.Base          (liftBase)
-import           Data.Int                    (Int32)
-import           Data.Text                   (Text)
-import           Data.UUID
-import qualified Generics.SOP                as SOP
-import qualified GHC.Generics                as GHC
 import           Squeal.PostgreSQL
 import           Squeal.PostgreSQL.Migration
-import           Squeal.PostgreSQL.Render
 
 type BoardCols =
       '[ "board_id" ::: 'NoDef :=> 'NotNull 'PGuuid
@@ -58,7 +53,7 @@ type BoardItemCols =
        ]
 
 type Schema =
-  '[ "quotes" ::: 'Table (
+    '[ "quotes" ::: 'Table (
       '[ "pk_quote" ::: 'PrimaryKey '["quote_id"] ] :=> QuoteCols)
    , "images" ::: 'Table (
       '[ "pk_image" ::: 'PrimaryKey '["image_id"] ] :=> ImageCols)
