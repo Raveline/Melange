@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeOperators         #-}
 module Melange.API.API
@@ -21,9 +22,13 @@ import           Melange.DB.Schema
 import           Melange.DB.Selections
 import           Melange.Model
 import           Melange.Model.External
+import           Melange.View.Index
+import           Network.HTTP.Media            ((//), (/:))
 import           Servant
 import           Squeal.PostgreSQL.Pool
 import           Squeal.PostgreSQL.PQ
+import           Text.Blaze.Html
+import           Text.Blaze.Html.Renderer.Utf8
 
 type MelangePool = Pool (K Connection Schema)
 type MelangeHandler = ReaderT MelangePool Handler
@@ -34,9 +39,11 @@ withPool q = do
   liftIO $ runPoolPQ q pool
 
 type API =
-  "melange" :> ("boards" :> (NewBoard :<|> GetBoards))
+  "melange" :> HomePage
+             :<|> ("boards" :> (NewBoard :<|> GetBoards))
              :<|> "board" :> Capture "date" Day :> (GetBoard :<|> PatchBoard :<|> DeleteBoard)
 
+type HomePage = Get '[HTML] IndexPage
 type NewBoard = ReqBody '[JSON] Board :> PostNoContent '[JSON] NoContent
 type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] [Board]
 type GetBoard = Get '[JSON] (Maybe Board)
@@ -51,7 +58,11 @@ server pool =
   let nat x = runReaderT x pool
       plural = (addBoard :<|> getBoards)
       singular day = (getBoard day :<|> patchBoard day :<|> deleteBoard day)
-  in hoistServer melangeAPI nat (plural :<|> singular)
+  in hoistServer melangeAPI nat (renderHome :<|> plural :<|> singular)
+
+renderHome :: MelangeHandler IndexPage
+renderHome =
+  IndexPage <$> (fmap . fmap) internalBoardToExternal (withPool getLatestBoard)
 
 addBoard :: Board -> MelangeHandler NoContent
 addBoard b =
@@ -70,3 +81,11 @@ patchBoard _ _ = pure NoContent
 
 deleteBoard :: Day -> MelangeHandler NoContent
 deleteBoard _ = pure NoContent
+
+data HTML
+instance Accept HTML where
+    contentType _ = "text" // "html" /: ("charset", "utf-8")
+instance ToMarkup a => MimeRender HTML a where
+    mimeRender _ = renderHtml . Text.Blaze.Html.toHtml
+instance MimeRender HTML Html where
+    mimeRender _ = renderHtml
