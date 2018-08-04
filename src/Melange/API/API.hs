@@ -11,11 +11,8 @@ module Melange.API.API
   , MelangePool
   ) where
 
-import           Control.Monad               ((>=>))
-import           Control.Monad.Base
 import           Control.Monad.IO.Class      (liftIO)
 import           Control.Monad.Reader        (ReaderT, ask, runReaderT)
-import           Control.Monad.Trans.Control
 import           Data.Proxy
 import           Data.Time
 import           Generics.SOP.BasicFunctors
@@ -25,7 +22,6 @@ import           Melange.DB.Selections
 import           Melange.Model
 import           Melange.Model.External
 import           Servant
-import           Servant.Server
 import           Squeal.PostgreSQL.Pool
 import           Squeal.PostgreSQL.PQ
 
