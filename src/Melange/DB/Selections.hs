@@ -21,8 +21,7 @@ import           Data.UUID                   (UUID)
 import qualified Generics.SOP                as SOP
 import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
-import           Melange.Model.Internal      (Board (..), Image (..), Item (..),
-                                              Quote (..))
+import           Melange.Model.External      (Board (..), Item (..))
 import           Squeal.PostgreSQL           hiding (date)
 
 type BoardQueryResult =
@@ -31,11 +30,9 @@ type BoardQueryResult =
   , "title"    ::: 'Null 'PGtext
   , "date"     ::: 'NotNull 'PGdate
   , "itemId" ::: 'NotNull 'PGuuid
-  , "quoteId" ::: 'Null 'PGuuid
   , "quoteTitle" ::: 'Null 'PGtext
   , "content"   ::: 'Null 'PGtext
   , "quoteSource" ::: 'Null 'PGtext
-  , "imageId" ::: 'Null 'PGuuid
   , "filepath"   :::  'Null 'PGtext
   , "imageSource" ::: 'Null 'PGtext
   ]
@@ -45,11 +42,9 @@ data BoardQueryRow = BoardQueryRow
   , title       :: Maybe Text
   , date        :: Day
   , itemId      :: UUID
-  , quoteId     :: Maybe UUID
   , quoteTitle  :: Maybe Text
   , content     :: Maybe Text
   , quoteSource :: Maybe Text
-  , imageId     :: Maybe UUID
   , filepath    :: Maybe Text
   , imageSource :: Maybe Text }
   deriving (Generic, Show)
@@ -61,11 +56,9 @@ splitter :: BoardQueryRow -> (Board, (Maybe Item, Maybe Item))
 splitter BoardQueryRow{..} =
   let board = Board boardId title date []
       quote =
-        ItemQuote <$> pure itemId
-                  <*> (Quote <$> quoteId <*> pure quoteTitle <*> content <*> pure quoteSource)
+        Quote <$> pure itemId <*> pure quoteTitle <*> content <*> pure quoteSource
       image =
-        ItemImage <$> pure itemId
-                  <*> (Image <$> imageId <*> filepath <*> pure imageSource)
+        Image <$> pure itemId <*> filepath <*> pure imageSource
   in (board, (quote, image))
 
 joiner :: [(Board, (Maybe Item, Maybe Item))] -> Maybe Board
@@ -116,11 +109,9 @@ boardFields =
      :* #b ! #title
      :* #b ! #date
      :* #it ! #item_id `As` #itemId
-     :* #q ! #quote_id `As` #quoteId
      :* #q ! #quote_title `As` #quoteTitle
      :* #q ! #content
      :* #q ! #quote_source `As` #quoteSource
-     :* #im ! #image_id `As` #imageId
      :* #im ! #filepath
      :* #im ! #image_source `As` #imageSource
      :* Nil

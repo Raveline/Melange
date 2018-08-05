@@ -21,7 +21,6 @@ import           Generics.SOP.BasicFunctors
 import           Melange.DB.Insertions
 import           Melange.DB.Schema
 import           Melange.DB.Selections
-import           Melange.Model
 import           Melange.Model.External
 import           Melange.View.Index
 import           Network.HTTP.Media            ((//), (/:))
@@ -64,7 +63,7 @@ server pool =
 
 renderHome :: MelangeHandler IndexPage
 renderHome =
-  IndexPage <$> (fmap . fmap) internalBoardToExternal (withPool getLatestBoard)
+  IndexPage <$> withPool getLatestBoard
 
 addBoard :: BoardCreation -> MelangeHandler NoContent
 addBoard b = do
@@ -79,7 +78,7 @@ getBoards = undefined
 
 getBoard :: Day -> MelangeHandler (Maybe Board)
 getBoard =
-  (fmap . fmap) internalBoardToExternal . withPool . getBoardByDay
+  withPool . getBoardByDay
 
 patchBoard :: Day -> Board -> MelangeHandler NoContent
 patchBoard _ _ = pure NoContent
