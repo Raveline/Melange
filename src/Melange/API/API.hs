@@ -12,7 +12,7 @@ module Melange.API.API
   , MelangePool
   ) where
 
-import           Control.Exception.Safe hiding (Handler)
+import           Control.Exception.Safe        hiding (Handler)
 import           Control.Monad.IO.Class        (liftIO)
 import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
 import           Data.Proxy

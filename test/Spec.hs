@@ -112,8 +112,8 @@ main = hspec $ before_ setupDB $ after_ dropDB $ do
         getLatestBoard
       latest `shouldCorrespondTo` fixtureBoard2
 
-    it "One cannot insert two boards with the same date" $ do
-      (withConnection connectionString $ newBoard fixtureBoard >> newBoard fixtureBoard)
+    it "One cannot insert two boards with the same date" $
+      withConnection connectionString (newBoard fixtureBoard >> newBoard fixtureBoard)
         `shouldThrow` (== AlreadyExists)
 
   describe "Creation items" $
