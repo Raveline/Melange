@@ -129,7 +129,8 @@ selectBoardByDay :: BoardQuery '[ 'NotNull 'PGdate ]
 selectBoardByDay = select
   boardFields
   (from boardTables
-    & where_ (#b ! #date .== param @1))
+    & where_ (#b ! #date .== param @1)
+    & orderBy [(#bi ! #order) & Asc])
 
 latestBoardId :: Query Schema '[] '["maxDate" ::: 'NotNull 'PGdate ]
 latestBoardId =
@@ -144,7 +145,7 @@ selectLatestBoard = select
   boardFields
   (from (boardTables
     & innerJoin (subquery (latestBoardId `As` #lbi)) (#b ! #date .== #lbi ! #maxDate))
-  )
+    & orderBy [(#bi ! #order) & Asc])
 
 getBoardByDay :: (MonadBaseControl IO m, MonadPQ Schema m) => Day -> m (Maybe Board)
 getBoardByDay day = do
