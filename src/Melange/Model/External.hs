@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RecordWildCards       #-}
 module Melange.Model.External
   (
     Item (..)
@@ -10,10 +12,12 @@ module Melange.Model.External
   ) where
 
 import           Data.Aeson
-import qualified Data.Text    as T
-import           Data.Time    (Day)
-import           Data.UUID    (UUID)
+import qualified Data.Text                   as T
+import           Data.Time                   (Day)
+import           Data.UUID                   (UUID)
 import           GHC.Generics
+import           Text.Blaze.Html5            as H
+import qualified Text.Blaze.Html5.Attributes as A
 
 data Item = Quote { itemId      :: UUID
                   , quoteTitle  :: Maybe T.Text
@@ -43,3 +47,12 @@ data BoardCreation =
                 , date       :: Day
                 , items      :: [ItemCreation] }
            deriving (Generic, Show, Eq, FromJSON)
+
+instance ToMarkup Item where
+  toMarkup Quote{..} =
+    H.div ! A.class_ "quote" $ do
+       maybe mempty ( (h2 ! A.class_ "quote-title") . toHtml) quoteTitle
+       H.div ! A.class_ "quote-content" $
+         p (toHtml content)
+       maybe mempty ( (p ! A.class_ "quote-source") . toHtml) quoteSource
+  toMarkup Image{..} = undefined
