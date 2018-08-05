@@ -1,21 +1,23 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE RecordWildCards       #-}
 module Spec where
 
-import Data.Aeson
-import Data.String.QQ
 import           Control.Monad               (void)
+import           Data.Aeson
 import           Data.ByteString.Char8       (ByteString)
-import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString.Lazy        as LBS
+import           Data.Either                 (isRight)
+import           Data.String.QQ
 import           Data.Time
-import Data.Either (isRight)
 import           Melange.DB.Insertions
 import           Melange.DB.Schema
 import           Melange.DB.Selections
-import           Melange.Model.External hiding (Board(..), Item(..), Quote, Image)
-import           Melange.Model.Internal hiding (date)
+import           Melange.Model.External      hiding (Board (..), Image,
+                                              Item (..), Quote)
+import           Melange.Model.Internal      hiding (date)
 import           Squeal.PostgreSQL           hiding (date)
 import           Squeal.PostgreSQL.Migration
 import           Test.Hspec
@@ -110,9 +112,11 @@ main = hspec $ before_ setupDB $ after_ dropDB $ do
         getLatestBoard
       latest `shouldCorrespondTo` fixtureBoard2
 
+    it "One cannot insert two boards with the same date" $ do
+      (withConnection connectionString $ newBoard fixtureBoard >> newBoard fixtureBoard)
+        `shouldThrow` (== AlreadyExists)
+
   describe "Creation items" $
     it "Can be read from JSON" $
       let decoded = eitherDecode exampleJsonSource :: Either String BoardCreation
-      in do
-        print $ encode fixtureBoard
-        decoded `shouldSatisfy` isRight
+      in decoded `shouldSatisfy` isRight
