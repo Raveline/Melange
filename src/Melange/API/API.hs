@@ -12,8 +12,9 @@ module Melange.API.API
   , MelangePool
   ) where
 
-import           Control.Monad.IO.Class      (liftIO)
-import           Control.Monad.Reader        (ReaderT, ask, runReaderT)
+import           Control.Exception.Safe hiding (Handler)
+import           Control.Monad.IO.Class        (liftIO)
+import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
 import           Data.Proxy
 import           Data.Time
 import           Generics.SOP.BasicFunctors
@@ -66,7 +67,12 @@ renderHome =
   IndexPage <$> (fmap . fmap) internalBoardToExternal (withPool getLatestBoard)
 
 addBoard :: BoardCreation -> MelangeHandler NoContent
-addBoard b = withPool (newBoard b) >> pure NoContent
+addBoard b = do
+  res <- try (withPool (newBoard b))
+  case res of
+    Right _ -> pure NoContent
+    Left AlreadyExists ->
+      throwError err422 { errBody = "There is a already a board with this date" }
 
 getBoards :: Int -> MelangeHandler [Board]
 getBoards = undefined

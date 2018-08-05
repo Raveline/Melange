@@ -8,11 +8,14 @@ module Melange.DB.Insertions
   (
     newItem
   , newBoard
+  , QueryExceptions (..)
   ) where
 
+import           Control.Exception.Base      hiding (catch, throwIO)
+import           Control.Exception.Safe
 import           Control.Monad               (void)
-import           Control.Monad.Trans.Control
 import           Control.Monad.Base
+import           Control.Monad.Trans.Control
 import           Data.Int
 import           Data.UUID                   (UUID)
 import           Data.UUID.V4                (nextRandom)
@@ -60,7 +63,7 @@ insertBoard = insertRow #boards
     :* Set (param @2) `As` #title
     :* Set (param @3) `As` #date
     :* Nil )
-    OnConflictDoNothing (Returning Nil)
+    OnConflictDoRaise (Returning Nil)
 
 insertBoardItem :: Manipulation Schema '[ 'NotNull 'PGuuid, 'NotNull 'PGuuid, 'NotNull 'PGint2] '[]
 insertBoardItem = insertRow #board_items
@@ -68,7 +71,7 @@ insertBoardItem = insertRow #board_items
     :* Set (param @2) `As` #item_id
     :* Set (param @3) `As` #order
     :* Nil )
-    OnConflictDoNothing (Returning Nil)
+    OnConflictDoRaise (Returning Nil)
 
 deleteBoardItems :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
 deleteBoardItems = deleteFrom #board_items (#board_id .== param @1) (Returning Nil)
@@ -87,14 +90,28 @@ newItem (ImageCreation f s) = do
     _ <- manipulateParams insertImageItem (itemUUID, Just imageUUID)
     pure imageUUID
 
+data QueryExceptions = AlreadyExists
+  deriving (Show, Typeable, Eq)
+
+instance Exception QueryExceptions
+
+handler :: (MonadPQ Schema m, MonadBaseControl IO m) => ErrorCall -> m a
+handler _ = liftBase $ throwIO AlreadyExists
+
+catchLift :: (Exception e, MonadPQ Schema m, MonadBaseControl IO m) => m a -> (e -> m a) -> m a
+catchLift action onError =
+  control $ \runInIO ->
+    runInIO action `catch` (runInIO . onError)
+
 newBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => BoardCreation -> m UUID
-newBoard BoardCreation{..} = do
+newBoard BoardCreation{..} = (do
     boardId <- liftBase nextRandom
-    uuids <- traverse newItem items
-    _ <- manipulateParams insertBoard (boardId, boardTitle, date)
-    _ <- manipulateParams deleteBoardItems (Only boardId)
-    associateBoardAndItems boardId uuids
-    pure boardId
+    transactionally_ $ do
+      void $ manipulateParams insertBoard (boardId, boardTitle, date)
+      uuids <- traverse newItem items
+      _ <- manipulateParams deleteBoardItems (Only boardId)
+      associateBoardAndItems boardId uuids
+    pure boardId) `catchLift` handler
 
 associateBoardAndItems :: (MonadBaseControl IO m, MonadPQ Schema m) => UUID -> [UUID] -> m ()
 associateBoardAndItems boardId itemIds =

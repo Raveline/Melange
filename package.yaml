@@ -30,6 +30,7 @@ dependencies:
 - monad-control
 - http-media
 - postgresql-simple
+- safe-exceptions
 - servant
 - servant-server
 - squeal-postgresql
