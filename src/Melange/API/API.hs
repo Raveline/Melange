@@ -21,7 +21,7 @@ import           Generics.SOP.BasicFunctors
 import           Melange.DB.Insertions
 import           Melange.DB.Schema
 import           Melange.DB.Selections
-import           Melange.Model.External
+import           Melange.Model
 import           Melange.View.Index
 import           Network.HTTP.Media            ((//), (/:))
 import           Servant

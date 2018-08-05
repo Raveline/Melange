@@ -15,9 +15,7 @@ import           Data.Time
 import           Melange.DB.Insertions
 import           Melange.DB.Schema
 import           Melange.DB.Selections
-import           Melange.Model.External      hiding (Board (..), Image,
-                                              Item (..), Quote)
-import           Melange.Model.Internal      hiding (date)
+import           Melange.Model
 import           Squeal.PostgreSQL           hiding (date)
 import           Squeal.PostgreSQL.Migration
 import           Test.Hspec
@@ -67,8 +65,8 @@ fixtureBoard2 =
 shouldCorrespondTo :: (HasCallStack) => Maybe Board -> BoardCreation -> Expectation
 shouldCorrespondTo Nothing _ = expectationFailure "Query had no result"
 shouldCorrespondTo (Just (Board _ t d its)) bc =
-  let convertItem (ItemQuote _ Quote{..}) = QuoteCreation{..}
-      convertItem (ItemImage _ Image{..}) = ImageCreation{..}
+  let convertItem Quote{..} = QuoteCreation{..}
+      convertItem Image{..} = ImageCreation{..}
       convertItems = convertItem <$> its
       asBoardCreation = BoardCreation t d convertItems
   in asBoardCreation `shouldBe` bc

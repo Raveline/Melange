@@ -20,7 +20,7 @@ import           Data.Int
 import           Data.UUID                   (UUID)
 import           Data.UUID.V4                (nextRandom)
 import           Melange.DB.Schema           (Schema)
-import           Melange.Model.External      (BoardCreation (..),
+import           Melange.Model               (BoardCreation (..),
                                               ItemCreation (..))
 import           Squeal.PostgreSQL           hiding (date)
 

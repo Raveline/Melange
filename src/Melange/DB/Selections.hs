@@ -21,7 +21,7 @@ import           Data.UUID                   (UUID)
 import qualified Generics.SOP                as SOP
 import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
-import           Melange.Model.External      (Board (..), Item (..))
+import           Melange.Model               (Board (..), Item (..))
 import           Squeal.PostgreSQL           hiding (date)
 
 type BoardQueryResult =
