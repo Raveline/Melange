@@ -1,11 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Spec where
 
+import Data.Aeson
+import Data.String.QQ
 import           Control.Monad               (void)
 import           Data.ByteString.Char8       (ByteString)
+import qualified Data.ByteString.Lazy as LBS
 import           Data.Time
+import Data.Either (isRight)
 import           Melange.DB.Insertions
 import           Melange.DB.Schema
 import           Melange.DB.Selections
@@ -69,6 +74,17 @@ shouldCorrespondTo (Just (Board _ t d its)) bc =
 connectionString :: ByteString
 connectionString = "host=localhost port=5432 dbname=melangetest user=melange password=melange"
 
+exampleJsonSource :: LBS.ByteString
+exampleJsonSource =
+  [s|
+    {"boardTitle":"About music"
+    ,"date":"2018-08-05"
+    ,"items":[{ "tag": "QuoteCreation"
+              , "quoteTitle":null
+              , "content":"Without music, life would be a mistake."
+              , "quoteSource":"Friedrich Nietzsche"}]}
+  |]
+
 setupDB :: IO ()
 setupDB = void . withConnection connectionString $
   manipulate (UnsafeManipulation "SET client_min_messages = error;")
@@ -80,7 +96,7 @@ dropDB = void . withConnection connectionString $
   & pqThen $ migrateDown $ single setup
 
 main :: IO ()
-main = hspec $ before_ setupDB $ after_ dropDB $
+main = hspec $ before_ setupDB $ after_ dropDB $ do
   describe "When it comes to boards" $ do
     it "There is no data loss when persisting them and retrieving them" $ do
       pickedBoard <- withConnection connectionString $ do
@@ -93,3 +109,10 @@ main = hspec $ before_ setupDB $ after_ dropDB $
         void $ newBoard fixtureBoard >> newBoard fixtureBoard2
         getLatestBoard
       latest `shouldCorrespondTo` fixtureBoard2
+
+  describe "Creation items" $
+    it "Can be read from JSON" $
+      let decoded = eitherDecode exampleJsonSource :: Either String BoardCreation
+      in do
+        print $ encode fixtureBoard
+        decoded `shouldSatisfy` isRight

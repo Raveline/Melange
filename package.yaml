@@ -83,5 +83,6 @@ tests:
     dependencies:
     - melange
     - hspec
+    - string-qq
     - time
     - uuid
