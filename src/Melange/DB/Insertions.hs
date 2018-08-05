@@ -1,24 +1,25 @@
 {-# LANGUAGE DataKinds        #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators    #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Melange.DB.Insertions
   (
     newItem
   , newBoard
   ) where
 
+import           Control.Monad               (void)
 import           Control.Monad.Trans.Control
-import           Control.Monad          (void)
-import           Data.Foldable          (traverse_)
+import           Control.Monad.Base
 import           Data.Int
-import qualified GHC.Generics           as GHC
-import           Melange.DB.Schema      (Schema)
-import           Melange.Model.Internal (Board (..), Image (..), Item (..),
-                                         Quote (..), itemId)
-import           Squeal.PostgreSQL
+import           Data.UUID                   (UUID)
+import           Data.UUID.V4                (nextRandom)
+import           Melange.DB.Schema           (Schema)
+import           Melange.Model.External      (BoardCreation (..),
+                                              ItemCreation (..))
+import           Squeal.PostgreSQL           hiding (date)
 
 insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext ] '[]
 insertQuote = insertRow #quotes
@@ -72,24 +73,31 @@ insertBoardItem = insertRow #board_items
 deleteBoardItems :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
 deleteBoardItems = deleteFrom #board_items (#board_id .== param @1) (Returning Nil)
 
-newItem :: (MonadBaseControl IO m, MonadPQ Schema m) => Item -> m ()
-newItem (ItemQuote uuid q) =
-  void $ manipulateParams insertQuote q
-        >> manipulateParams insertQuoteItem (uuid, Just $ quoteId q)
-newItem (ItemImage uuid i) =
-  void $ manipulateParams insertImage i
-        >> manipulateParams insertImageItem (uuid, Just $ imageId i)
+newItem :: (MonadBaseControl IO m, MonadPQ Schema m) => ItemCreation -> m UUID
+newItem (QuoteCreation t c s) = do
+    quoteUUID <- liftBase nextRandom
+    itemUUID <- liftBase nextRandom
+    _ <- manipulateParams insertQuote (quoteUUID, t, c, s)
+    _ <- manipulateParams insertQuoteItem (itemUUID, Just quoteUUID)
+    pure itemUUID
+newItem (ImageCreation f s) = do
+    imageUUID <- liftBase nextRandom
+    itemUUID <- liftBase nextRandom
+    _ <- manipulateParams insertImage (imageUUID, f, s)
+    _ <- manipulateParams insertImageItem (itemUUID, Just imageUUID)
+    pure imageUUID
 
-newBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => Board -> m ()
-newBoard b@Board{..} =
-  void $ traverse_ newItem items
-      >> manipulateParams insertBoard (boardId, boardTitle, date)
-      >> manipulateParams deleteBoardItems (Only boardId)
-      >> associateBoardAndItems b
+newBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => BoardCreation -> m UUID
+newBoard BoardCreation{..} = do
+    boardId <- liftBase nextRandom
+    uuids <- traverse newItem items
+    _ <- manipulateParams insertBoard (boardId, boardTitle, date)
+    _ <- manipulateParams deleteBoardItems (Only boardId)
+    associateBoardAndItems boardId uuids
+    pure boardId
 
-associateBoardAndItems :: (MonadBaseControl IO m, MonadPQ Schema m) => Board -> m ()
-associateBoardAndItems Board{..} =
-  let itemsUUID = itemId <$> items
-      counting = [1..] :: [Int16]
-      params = zip3 (repeat boardId) itemsUUID counting
+associateBoardAndItems :: (MonadBaseControl IO m, MonadPQ Schema m) => UUID -> [UUID] -> m ()
+associateBoardAndItems boardId itemIds =
+  let counting = [1..] :: [Int16]
+      params = zip3 (repeat boardId) itemIds counting
   in void $ traversePrepared insertBoardItem params

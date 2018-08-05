@@ -14,6 +14,11 @@ import           Data.UUID    (UUID)
 import qualified Generics.SOP as SOP
 import           GHC.Generics
 
+-- TODO: Stop duplicating everything
+-- and make sure we drop this model.
+-- UUID for quotes and images could be added
+-- at insertion.
+
 data Item = ItemQuote UUID Quote | ItemImage UUID Image
   deriving (Show, Eq)
 

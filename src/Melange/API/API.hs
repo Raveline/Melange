@@ -44,7 +44,7 @@ type API =
              :<|> "board" :> Capture "date" Day :> (GetBoard :<|> PatchBoard :<|> DeleteBoard)
 
 type HomePage = Get '[HTML] IndexPage
-type NewBoard = ReqBody '[JSON] Board :> PostNoContent '[JSON] NoContent
+type NewBoard = ReqBody '[JSON] BoardCreation :> PostNoContent '[JSON] NoContent
 type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] [Board]
 type GetBoard = Get '[JSON] (Maybe Board)
 type PatchBoard = ReqBody '[JSON] Board :> PatchNoContent '[JSON] NoContent
@@ -64,10 +64,8 @@ renderHome :: MelangeHandler IndexPage
 renderHome =
   IndexPage <$> (fmap . fmap) internalBoardToExternal (withPool getLatestBoard)
 
-addBoard :: Board -> MelangeHandler NoContent
-addBoard b =
-  (externalBoardToInternal b >>= withPool . newBoard)
-  >> pure NoContent
+addBoard :: BoardCreation -> MelangeHandler NoContent
+addBoard b = withPool (newBoard b) >> pure NoContent
 
 getBoards :: Int -> MelangeHandler [Board]
 getBoards = undefined
