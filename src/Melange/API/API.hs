@@ -39,9 +39,10 @@ withPool q = do
   liftIO $ runPoolPQ q pool
 
 type API =
-  "melange" :> HomePage
-             :<|> ("boards" :> (NewBoard :<|> GetBoards))
-             :<|> "board" :> Capture "date" Day :> (GetBoard :<|> PatchBoard :<|> DeleteBoard)
+  "melange" :> (Plurals :<|> Singulars :<|> HomePage)
+
+type Plurals = ("boards" :> (NewBoard :<|> GetBoards))
+type Singulars = ("board" :> Capture "date" Day :> (GetBoard :<|> PatchBoard :<|> DeleteBoard))
 
 type HomePage = Get '[HTML] IndexPage
 type NewBoard = ReqBody '[JSON] BoardCreation :> PostNoContent '[JSON] NoContent
@@ -58,7 +59,7 @@ server pool =
   let nat x = runReaderT x pool
       plural = (addBoard :<|> getBoards)
       singular day = (getBoard day :<|> patchBoard day :<|> deleteBoard day)
-  in hoistServer melangeAPI nat (renderHome :<|> plural :<|> singular)
+  in hoistServer melangeAPI nat (plural :<|> singular :<|> renderHome)
 
 renderHome :: MelangeHandler IndexPage
 renderHome =
