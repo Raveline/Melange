@@ -55,18 +55,18 @@ type BoardItemCols =
 type Schema =
     '[ "quotes" ::: 'Table (
       '[ "pk_quote" ::: 'PrimaryKey '["quote_id"] ] :=> QuoteCols)
-   , "images" ::: 'Table (
+     , "images" ::: 'Table (
       '[ "pk_image" ::: 'PrimaryKey '["image_id"] ] :=> ImageCols)
-   , "items" ::: 'Table (
+     , "items" ::: 'Table (
        '[ "pk_item" ::: 'PrimaryKey '["item_id"]
         , "fk_quote_id" ::: 'ForeignKey '["quote_id"] "quotes" '["quote_id"]
         , "fk_image_id" ::: 'ForeignKey '["image_id"] "images" '["image_id"]
         ] :=> ItemCols)
-   , "boards" ::: 'Table (
+     , "boards" ::: 'Table (
       '[ "pk_board" ::: 'PrimaryKey '["board_id"]
        , "unique_dates" ::: 'Unique '["date"]
        ] :=> BoardCols)
-   , "board_items" ::: 'Table (
+     , "board_items" ::: 'Table (
        '[ "pk_board_item" ::: 'PrimaryKey '["board_id", "item_id"]
         , "fk_board_id" ::: 'ForeignKey '["board_id"] "boards" '["board_id"]
         , "fk_quote_id" ::: 'ForeignKey '["item_id"] "items" '["item_id"]
