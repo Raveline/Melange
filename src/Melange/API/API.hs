@@ -21,6 +21,8 @@ import           Generics.SOP.BasicFunctors
 import           Melange.DB.Insertions
 import           Melange.DB.Schema
 import           Melange.DB.Selections
+import           Melange.DB.Deletions
+import           Melange.DB.Types
 import           Melange.Model
 import           Melange.View.Index
 import           Network.HTTP.Media            ((//), (/:))
@@ -37,6 +39,13 @@ withPool :: PoolPQ Schema IO a -> MelangeHandler a
 withPool q = do
   pool <- ask
   liftIO $ runPoolPQ q pool
+
+withPoolE :: QueryException -> ServantErr -> PoolPQ Schema IO a -> MelangeHandler a
+withPoolE qe onError query = do
+  res <- try (withPool query)
+  case res of
+      Right x -> pure x
+      Left e -> if e == qe then throwError onError else throwError err500
 
 type API =
   "melange" :> (Plurals :<|> Singulars :<|> HomePage)
@@ -66,12 +75,9 @@ renderHome =
   IndexPage <$> withPool getLatestBoard
 
 addBoard :: BoardCreation -> MelangeHandler NoContent
-addBoard b = do
-  res <- try (withPool (newBoard b))
-  case res of
-    Right _ -> pure NoContent
-    Left AlreadyExists ->
-      throwError err422 { errBody = "There is a already a board with this date" }
+addBoard b =
+  let onError = err422 { errBody = "There is a already a board with this date" }
+  in NoContent <$ withPoolE AlreadyExists onError (newBoard b)
 
 getBoards :: Int -> MelangeHandler [Board]
 getBoards = undefined
@@ -81,10 +87,15 @@ getBoard =
   withPool . getBoardByDay
 
 patchBoard :: Day -> Board -> MelangeHandler NoContent
-patchBoard _ _ = pure NoContent
+patchBoard d b =
+  let onError = err404 { errBody = "No board to update with this date" }
+  in NoContent <$ withPoolE UpdateNonExistingEntity onError (updateBoard d b)
 
 deleteBoard :: Day -> MelangeHandler NoContent
-deleteBoard _ = pure NoContent
+deleteBoard d =
+  let onError = err404 { errBody = "No board to delete with this date" }
+      removeProcess = removeBoardAtDay DeleteNonExistingEntity d
+  in NoContent <$ withPoolE DeleteNonExistingEntity onError removeProcess
 
 data HTML
 instance Accept HTML where
