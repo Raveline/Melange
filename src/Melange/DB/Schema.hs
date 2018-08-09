@@ -69,7 +69,7 @@ type Schema =
      , "board_items" ::: 'Table (
        '[ "pk_board_item" ::: 'PrimaryKey '["board_id", "item_id"]
         , "fk_board_id" ::: 'ForeignKey '["board_id"] "boards" '["board_id"]
-        , "fk_quote_id" ::: 'ForeignKey '["item_id"] "items" '["item_id"]
+        , "fk_item_id" ::: 'ForeignKey '["item_id"] "items" '["item_id"]
         ] :=> BoardItemCols
        )
    ]
@@ -123,7 +123,7 @@ initial =
         :* foreignKey #board_id #boards #board_id
              OnDeleteCascade OnUpdateCascade `As` #fk_board_id
         :* foreignKey #item_id #items #item_id
-             OnDeleteCascade OnUpdateCascade `As` #fk_quote_id
+             OnDeleteCascade OnUpdateCascade `As` #fk_item_id
         :* Nil )
 
 setup :: Migration IO '[] Schema
