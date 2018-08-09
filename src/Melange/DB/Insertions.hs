@@ -8,7 +8,7 @@ module Melange.DB.Insertions
   (
     newItem
   , newBoard
-  , QueryExceptions (..)
+  , updateBoard
   ) where
 
 import           Control.Exception.Base      hiding (catch, throwIO)
@@ -17,11 +17,15 @@ import           Control.Monad               (void)
 import           Control.Monad.Base
 import           Control.Monad.Trans.Control
 import           Data.Int
+import           Data.Time
 import           Data.UUID                   (UUID)
 import           Data.UUID.V4                (nextRandom)
+import           Melange.DB.Deletions        (removeBoardAtDay)
 import           Melange.DB.Schema           (Schema)
-import           Melange.Model               (BoardCreation (..),
-                                              ItemCreation (..))
+import           Melange.DB.Types            (QueryException (..))
+import           Melange.Model               (Board (..), BoardCreation (..),
+                                              ItemCreation (..),
+                                              boardToCreation)
 import           Squeal.PostgreSQL           hiding (date)
 
 insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext ] '[]
@@ -90,11 +94,6 @@ newItem (ImageCreation f s) = do
     _ <- manipulateParams insertImageItem (itemUUID, Just imageUUID)
     pure imageUUID
 
-data QueryExceptions = AlreadyExists
-  deriving (Show, Typeable, Eq)
-
-instance Exception QueryExceptions
-
 handler :: (MonadPQ Schema m, MonadBaseControl IO m) => ErrorCall -> m a
 handler _ = liftBase $ throwIO AlreadyExists
 
@@ -102,6 +101,11 @@ catchLift :: (Exception e, MonadPQ Schema m, MonadBaseControl IO m) => m a -> (e
 catchLift action onError =
   control $ \runInIO ->
     runInIO action `catch` (runInIO . onError)
+
+updateBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => Day -> Board -> m UUID
+updateBoard day updatedBoard = do
+  removeBoardAtDay UpdateNonExistingEntity day
+  newBoard (boardToCreation updatedBoard)
 
 newBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => BoardCreation -> m UUID
 newBoard BoardCreation{..} = (do
