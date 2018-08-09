@@ -9,6 +9,7 @@ module Melange.Model
   , Board (..)
   , ItemCreation (..)
   , BoardCreation (..)
+  , boardToCreation
   ) where
 
 import           Data.Aeson
@@ -47,6 +48,15 @@ data BoardCreation =
                 , date       :: Day
                 , items      :: [ItemCreation] }
            deriving (Generic, Show, Eq, FromJSON)
+
+itemToCreation :: Item -> ItemCreation
+itemToCreation Quote{..} = QuoteCreation{..}
+itemToCreation Image{..} = ImageCreation{..}
+
+boardToCreation :: Board -> BoardCreation
+boardToCreation (Board _ boardTitle date is) =
+  let items = itemToCreation <$> is
+  in BoardCreation{..}
 
 instance ToMarkup Item where
   toMarkup Quote{..} =
