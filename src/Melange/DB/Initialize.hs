@@ -8,7 +8,6 @@ module Melange.DB.Initialize
 import           Control.Monad               (void)
 import           Control.Monad.Writer
 import           Data.ByteString.Char8       (ByteString, pack)
-import           Data.List                   (intercalate)
 import           Data.Maybe                  (fromMaybe)
 import           Melange.DB.Schema
 import           Squeal.PostgreSQL
