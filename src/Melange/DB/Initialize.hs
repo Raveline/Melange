@@ -3,6 +3,7 @@ module Melange.DB.Initialize
   (
     initDB
   , computeConnectionString
+  , fetchEnv
   ) where
 
 import           Control.Monad               (void)
