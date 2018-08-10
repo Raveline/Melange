@@ -1,27 +1,32 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE DeriveGeneric    #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE TypeInType       #-}
-{-# LANGUAGE TypeOperators    #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedLabels    #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeInType          #-}
+{-# LANGUAGE TypeOperators       #-}
 module Melange.DB.Selections
   (
     getBoardByDay
   , getLatestBoard
+  , getSummaryAtPage
   ) where
 
 import           Control.Monad.Trans.Control
+import           Data.Int                    (Int64)
 import           Data.Maybe                  (catMaybes)
 import           Data.Text                   (Text)
 import           Data.Time                   (Day)
 import           Data.UUID                   (UUID)
+import           Data.Word                   (Word64)
 import qualified Generics.SOP                as SOP
 import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
-import           Melange.Model               (Board (..), Item (..))
+import           Melange.Model               (Board (..), BoardSummary (..),
+                                              Item (..))
 import           Squeal.PostgreSQL           hiding (date)
 
 type BoardQueryResult =
@@ -35,6 +40,12 @@ type BoardQueryResult =
   , "quoteSource" ::: 'Null 'PGtext
   , "filepath"   :::  'Null 'PGtext
   , "imageSource" ::: 'Null 'PGtext
+  ]
+
+type SummaryPageResult =
+  [
+    "date" ::: 'NotNull 'PGdate
+  , "boardTitle" ::: 'Null 'PGtext
   ]
 
 data BoardQueryRow = BoardQueryRow
@@ -147,3 +158,30 @@ getLatestBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => m (Maybe Board)
 getLatestBoard = do
   res <- runQueryParams selectLatestBoard ()
   joiner . fmap splitter <$> getRows res
+
+selectSummaryPage :: Word64 -> Query Schema '[] SummaryPageResult
+selectSummaryPage off =
+  select ( #boards ! #date
+         :* #boards ! #title `As` #boardTitle
+         :* Nil )
+  (from (table #boards) & limit (fromIntegral summaryPageSize) & offset off)
+
+countBoardsQuery :: Query Schema '[] '[ "fromOnly" :=> 'NotNull 'PGint8 ]
+countBoardsQuery =
+  select
+    (countStar `As` #fromOnly :* Nil)
+    (from (table #boards) & groupBy Nil)
+
+summaryPageSize :: Int
+summaryPageSize = 10
+
+countBoards :: (MonadBaseControl IO m, MonadPQ Schema m) => m Int64
+countBoards = fromOnly <$> (runQuery countBoardsQuery >>= getRow 0)
+
+getSummaryAtPage :: (MonadBaseControl IO m, MonadPQ Schema m) => Int -> m (Maybe BoardSummary)
+getSummaryAtPage currentPage =
+  let offset' = fromIntegral $ currentPage * summaryPageSize
+      getItems = runQueryParams (selectSummaryPage offset') () >>= getRows
+      getCount = fromIntegral <$> countBoards
+      numberOfPages = (`div` summaryPageSize) <$> getCount
+  in Just <$> (BoardSummary <$> getItems <*> pure currentPage <*> numberOfPages)
