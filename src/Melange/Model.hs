@@ -18,10 +18,10 @@ import           Data.Aeson
 import qualified Data.Text                   as T
 import           Data.Time                   (Day)
 import           Data.UUID                   (UUID)
+import qualified Generics.SOP                as SOP
 import           GHC.Generics
 import           Text.Blaze.Html5            as H
 import qualified Text.Blaze.Html5.Attributes as A
-import qualified Generics.SOP                as SOP
 
 data Item = Quote { itemId      :: UUID
                   , quoteTitle  :: Maybe T.Text
@@ -61,9 +61,9 @@ instance SOP.Generic BoardSummaryItem
 instance SOP.HasDatatypeInfo BoardSummaryItem
 
 data BoardSummary =
-  BoardSummary { boards       :: [BoardSummaryItem]
-               , currentPage  :: Int
-               , numberOfPage :: Int }
+  BoardSummary { boards        :: [BoardSummaryItem]
+               , currentPage   :: Int
+               , numberOfPages :: Int }
   deriving (Generic, Show, Eq, ToJSON)
 
 
