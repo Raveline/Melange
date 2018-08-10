@@ -25,16 +25,23 @@ boardToTitle (Board _ (Just title') day _) =
           , ")"
           ]
 
+page :: Html -> Html
+page bod = docTypeHtml $ do
+  melangeTitle
+  linkCSS
+  body bod
+
+melangeTitle :: Html
+melangeTitle = H.title "Melange"
+
+linkCSS :: Html
+linkCSS = H.link ! A.rel "stylesheet" ! A.href "/static/melange.css" ! A.type_ "text/css"
+
 instance ToMarkup IndexPage where
-  toMarkup (IndexPage Nothing) = do
-    H.head $
-      H.title "Melange"
-    body $
-      p "There is nothing to display."
-  toMarkup (IndexPage (Just bo@Board{..}))= do
-    H.head $
-      H.title "Melange"
-    body $ do
+  toMarkup (IndexPage Nothing) = page $ p "There is nothing to display."
+
+  toMarkup (IndexPage (Just bo@Board{..}))=
+    page $ do
       H.div ! A.class_ "header" $
         h1 (toHtml . boardToTitle $ bo)
       H.div $
