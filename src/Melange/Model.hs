@@ -9,6 +9,8 @@ module Melange.Model
   , Board (..)
   , ItemCreation (..)
   , BoardCreation (..)
+  , BoardSummaryItem (..)
+  , BoardSummary (..)
   , boardToCreation
   ) where
 
@@ -19,6 +21,7 @@ import           Data.UUID                   (UUID)
 import           GHC.Generics
 import           Text.Blaze.Html5            as H
 import qualified Text.Blaze.Html5.Attributes as A
+import qualified Generics.SOP                as SOP
 
 data Item = Quote { itemId      :: UUID
                   , quoteTitle  :: Maybe T.Text
@@ -33,7 +36,7 @@ data Board = Board { boardId    :: UUID
                    , boardTitle :: Maybe T.Text
                    , date       :: Day
                    , items      :: [Item] }
-           deriving (Show, Generic, Eq, ToJSON, FromJSON)
+  deriving (Show, Generic, Eq, ToJSON, FromJSON)
 
 data ItemCreation =
   QuoteCreation { quoteTitle  :: Maybe T.Text
@@ -41,13 +44,28 @@ data ItemCreation =
                 , quoteSource :: Maybe T.Text }
   | ImageCreation { filepath    :: T.Text
                   , imageSource :: Maybe T.Text }
-           deriving (Generic, Show, Eq, FromJSON)
+  deriving (Generic, Show, Eq, FromJSON)
 
 data BoardCreation =
   BoardCreation { boardTitle :: Maybe T.Text
                 , date       :: Day
                 , items      :: [ItemCreation] }
-           deriving (Generic, Show, Eq, FromJSON)
+  deriving (Generic, Show, Eq, FromJSON)
+
+data BoardSummaryItem =
+  BoardSummaryItem { date       :: Day
+                   , boardTitle :: Maybe T.Text }
+  deriving (Generic, Show, Eq, ToJSON)
+
+instance SOP.Generic BoardSummaryItem
+instance SOP.HasDatatypeInfo BoardSummaryItem
+
+data BoardSummary =
+  BoardSummary { boards       :: [BoardSummaryItem]
+               , currentPage  :: Int
+               , numberOfPage :: Int }
+  deriving (Generic, Show, Eq, ToJSON)
+
 
 itemToCreation :: Item -> ItemCreation
 itemToCreation Quote{..} = QuoteCreation{..}
