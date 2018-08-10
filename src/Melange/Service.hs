@@ -5,21 +5,27 @@ module Melange.Service
   ) where
 
 import           Data.Proxy
-import qualified Melange.API.API             as API (API, MelangePool, server)
-import           Melange.DB.Initialize       (computeConnectionString)
+import qualified Melange.API.API                      as API (API, MelangePool,
+                                                              server)
+import           Melange.DB.Initialize                (computeConnectionString,
+                                                       fetchEnv)
 import           Network.Wai
 import           Network.Wai.Handler.Warp
+import           Network.Wai.Middleware.Cors          (CorsResourcePolicy (..),
+                                                       cors,
+                                                       simpleCorsResourcePolicy)
 import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
-import           Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors,
-                                              simpleCorsResourcePolicy)
 import           Servant
 import           Squeal.PostgreSQL.Pool
 
 melangeAPI :: Proxy API.API
 melangeAPI = Proxy
 
-melange :: API.MelangePool -> Application
-melange pool = serve melangeAPI (API.server pool)
+getStaticDirectory :: IO FilePath
+getStaticDirectory = fetchEnv "MELANGE_STATIC_FILES"
+
+melange :: FilePath -> API.MelangePool -> Application
+melange staticDir = serve melangeAPI . API.server staticDir
 
 localhostCors :: CorsResourcePolicy
 localhostCors = simpleCorsResourcePolicy { corsOrigins = Just (["http://localhost:8080"], True)
@@ -29,8 +35,10 @@ corsMiddleware :: Middleware
 corsMiddleware = cors (const $ Just localhostCors)
 
 runServer :: IO ()
-runServer =
-  getPool >>= run 8492 . corsMiddleware . logStdoutDev . melange
+runServer = do
+  pool <- getPool
+  staticDir <- getStaticDirectory
+  run 8492 . corsMiddleware . logStdoutDev $ melange staticDir pool
 
 getPool :: IO API.MelangePool
 getPool = do
