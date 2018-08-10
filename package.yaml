@@ -25,7 +25,10 @@ dependencies:
 - blaze-html
 - bytestring
 - containers
+- filepath
 - generics-sop
+- http-client
+- JuicyPixels
 - mtl
 - monad-control
 - http-media
@@ -33,6 +36,7 @@ dependencies:
 - safe-exceptions
 - servant
 - servant-server
+- servant-multipart
 - squeal-postgresql
 - text
 - time
