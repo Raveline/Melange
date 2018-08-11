@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedLabels    #-}
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
@@ -16,44 +16,27 @@ import           Control.Exception.Safe
 import           Control.Monad               (void)
 import           Control.Monad.Base
 import           Control.Monad.Trans.Control
-import           Data.Foldable               (traverse_)
+import           Data.Maybe                  (catMaybes)
 import           Data.Time
+import           Data.UUID                   (UUID)
+import qualified Generics.SOP                as SOP
+import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
 import           Melange.DB.Selections
 import           Melange.DB.Types            (QueryException)
-import           Melange.Model               (Board (..), Item (..))
+import           Melange.Model               (Board (..))
 import           Squeal.PostgreSQL           hiding (date)
-import           Squeal.PostgreSQL.Render
 
 deleteBoard :: Manipulation Schema '[ 'NotNull 'PGdate ] '[]
 deleteBoard = deleteFrom #boards
   (#date .== param @1) (Returning Nil )
 
 deleteQuote :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
-deleteQuote = deleteFrom_ #quotes
-  ( notNull #quote_id `in_` fetchQuoteId)
+deleteQuote = deleteFrom_ #quotes ( #quote_id .== param @1 )
 
 deleteImage :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
 deleteImage =
-  deleteFrom_ #images
-    ( notNull #image_id `in_` fetchImageId)
-
-in_
-  :: Expression schema from grp params ty
-  -> Query schema params '[alias ::: ty]
-  -> Condition schema from grp params
-in_ x q = UnsafeExpression $
-  renderExpression x <+> "IN" <+> parenthesized (renderQuery q)
-
-fetchImageId :: Query Schema '[ 'NotNull 'PGuuid ] '[ "image_id" ::: 'Null 'PGuuid ]
-fetchImageId = select (#items ! #image_id)
-  (from (table #items)
-  & where_ (#item_id .== param @1))
-
-fetchQuoteId :: Query Schema '[ 'NotNull 'PGuuid ] '[ "quote_id" ::: 'Null 'PGuuid ]
-fetchQuoteId = select (#items ! #quote_id)
-  (from (table #items)
-  & where_ (#item_id .== param @1))
+  deleteFrom_ #images ( #image_id .== param @1 )
 
 removeBoardAtDay :: (MonadBaseControl IO m, MonadPQ Schema m) => QueryException -> Day -> m ()
 removeBoardAtDay e day = do
@@ -63,11 +46,45 @@ removeBoardAtDay e day = do
 removeBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => Day -> m ()
 removeBoard d = void $ manipulateParams deleteBoard (Only d)
 
-removeItem :: (MonadBaseControl IO m, MonadPQ Schema m) => Item -> m ()
-removeItem Quote{..} = void $ manipulateParams deleteQuote $ Only itemId
-removeItem Image{..} = void $ manipulateParams deleteImage $ Only itemId
+removeItem :: (MonadBaseControl IO m, MonadPQ Schema m) => ([UUID], [UUID]) -> m ()
+removeItem (quotes, images) = do
+  traversePrepared_ deleteQuote (Only <$> quotes)
+  traversePrepared_ deleteImage (Only <$> images)
+
+type BoardGraphDeletionResult =
+  [
+    "imageId" ::: 'Null 'PGuuid
+  , "quoteId" ::: 'Null 'PGuuid
+  ]
+
+data BoardGraphDeletionRow =
+  BoardGraphDeletionRow { imageId :: Maybe UUID
+                        , quoteId :: Maybe UUID }
+  deriving (Generic)
+
+instance SOP.Generic BoardGraphDeletionRow
+instance SOP.HasDatatypeInfo BoardGraphDeletionRow
+
+unzipDeletionRows :: [BoardGraphDeletionRow] -> ([UUID], [UUID])
+unzipDeletionRows bdrs =
+  let images = catMaybes $ imageId <$> bdrs
+      quotes = catMaybes $ quoteId <$> bdrs
+  in (quotes, images)
+
+fetchGraph :: Query Schema '[ 'NotNull 'PGdate] BoardGraphDeletionResult
+fetchGraph = select
+  ( #items ! #image_id `As` #imageId
+  :* #items ! #quote_id `As` #quoteId
+  :* Nil )
+  (from (table #items
+       & innerJoin (table #board_items) (#board_items ! #item_id .== #items ! #item_id)
+       & innerJoin (table #boards) (#boards ! #board_id .== #board_items ! #board_id ))
+  & where_ (#boards ! #date .== param @1))
 
 removeAllBoardInfo :: (MonadBaseControl IO m, MonadPQ Schema m) => Board -> m ()
 removeAllBoardInfo Board{..} = do
+  results <- runQueryParams fetchGraph (Only date)
+  rows <- getRows results
+  let graph = unzipDeletionRows rows
   removeBoard date
-  traverse_ removeItem items
+  removeItem graph
