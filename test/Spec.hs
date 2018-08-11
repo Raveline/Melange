@@ -31,68 +31,63 @@ import           Squeal.PostgreSQL           hiding (date)
 import           Squeal.PostgreSQL.Migration
 import           Test.Hspec
 
-fixtureQuote1 :: ItemCreation
+fixtureQuote1 :: Item
 fixtureQuote1 =
-  QuoteCreation
+  Quote
     Nothing
     "Happy families are all alike; every unhappy family is unhappy in its own way"
     Nothing
 
-fixtureQuote2 :: ItemCreation
+fixtureQuote2 :: Item
 fixtureQuote2 =
-  QuoteCreation
+  Quote
     (Just "Oscar being Oscar")
     "To lose one parent may be regarded as a misfortune; to lose both looks like carelessness."
     Nothing
 
-fixtureQuote3 :: ItemCreation
+fixtureQuote3 :: Item
 fixtureQuote3 =
-  QuoteCreation
+  Quote
     Nothing
     "The beginnings of all things are small."
     (Just "Cicero")
 
-fixtureQuote4 :: ItemCreation
+fixtureQuote4 :: Item
 fixtureQuote4 =
-  QuoteCreation
+  Quote
     Nothing
     "The only joy in life is to begin"
     (Just "Cesar Pavese")
 
-fixtureImage1 :: ItemCreation
+fixtureImage1 :: Item
 fixtureImage1 =
-  ImageCreation
+  Image
     "Some filepath" (Just "Some source")
 
-fixtureBoard :: BoardCreation
+fixtureBoard :: Board
 fixtureBoard =
-  BoardCreation
+  Board
     (Just "On family")
     (fromGregorian 1998 12 12)
     [fixtureQuote1, fixtureQuote2]
 
-fixtureBoard2 :: BoardCreation
+fixtureBoard2 :: Board
 fixtureBoard2 =
-  BoardCreation
+  Board
     (Just "On beginnings")
     (fromGregorian 2018 8 1)
     [fixtureQuote3, fixtureQuote4]
 
-fixtureBoard3 :: BoardCreation
+fixtureBoard3 :: Board
 fixtureBoard3 =
-  BoardCreation
+  Board
     (Just "On images")
     (fromGregorian 2000 1 1)
     [fixtureImage1]
 
-shouldCorrespondTo :: (HasCallStack) => Maybe Board -> BoardCreation -> Expectation
+shouldCorrespondTo :: (HasCallStack) => Maybe Board -> Board -> Expectation
 shouldCorrespondTo Nothing _ = expectationFailure "Query had no result"
-shouldCorrespondTo (Just (Board _ t d its)) bc =
-  let convertItem Quote{..} = QuoteCreation{..}
-      convertItem Image{..} = ImageCreation{..}
-      convertItems = convertItem <$> its
-      asBoardCreation = BoardCreation t d convertItems
-  in asBoardCreation `shouldBe` bc
+shouldCorrespondTo (Just b1) b2 = b1 `shouldBe` b2
 
 connectionString :: ByteString
 connectionString = "host=localhost port=5432 dbname=melangetest user=melange password=melange"
@@ -133,7 +128,7 @@ exampleJsonSource =
   [s|
     {"boardTitle":"About music"
     ,"date":"2018-08-05"
-    ,"items":[{ "tag": "QuoteCreation"
+    ,"items":[{ "tag": "Quote"
               , "quoteTitle":null
               , "content":"Without music, life would be a mistake."
               , "quoteSource":"Friedrich Nietzsche"}]}
@@ -149,8 +144,8 @@ dropDB = void . withConnection connectionString $
   manipulate (UnsafeManipulation "SET client_min_messages = error;")
   & pqThen $ migrateDown $ single setup
 
-boardDate :: BoardCreation -> Day
-boardDate BoardCreation{..} = date
+boardDate :: Board -> Day
+boardDate Board{..} = date
 
 main :: IO ()
 main = hspec $ before_ setupDB $ after_ dropDB $ do
@@ -196,7 +191,7 @@ main = hspec $ before_ setupDB $ after_ dropDB $ do
         getBoardByDay boardDay
       let getBoardTitle :: Board -> Maybe Text
           getBoardTitle Board{..} = boardTitle
-      (updatedBoard >>= getBoardTitle) `shouldBe` (Just "Updated title")
+      (updatedBoard >>= getBoardTitle) `shouldBe` Just "Updated title"
 
     it "Boards can contain images too" $ do
      queriedBoard <- withConnection connectionString $ do
@@ -206,6 +201,6 @@ main = hspec $ before_ setupDB $ after_ dropDB $ do
 
   describe "Creation items" $
     it "Can be read from JSON" $
-      let decoded = eitherDecode exampleJsonSource :: Either String BoardCreation
+      let decoded = eitherDecode exampleJsonSource :: Either String Board
       in decoded `shouldSatisfy` isRight
 

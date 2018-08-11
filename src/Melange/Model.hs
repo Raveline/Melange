@@ -7,50 +7,29 @@ module Melange.Model
   (
     Item (..)
   , Board (..)
-  , ItemCreation (..)
-  , BoardCreation (..)
   , BoardSummaryItem (..)
   , BoardSummary (..)
-  , boardToCreation
   ) where
 
 import           Data.Aeson
 import qualified Data.Text                   as T
 import           Data.Time                   (Day)
-import           Data.UUID                   (UUID)
 import qualified Generics.SOP                as SOP
 import           GHC.Generics
 import           Text.Blaze.Html5            as H
 import qualified Text.Blaze.Html5.Attributes as A
 
-data Item = Quote { itemId      :: UUID
-                  , quoteTitle  :: Maybe T.Text
+data Item = Quote { quoteTitle  :: Maybe T.Text
                   , content     :: T.Text
                   , quoteSource :: Maybe T.Text }
-          | Image { itemId      :: UUID
-                  , filepath    :: T.Text
+          | Image { filepath    :: T.Text
                   , imageSource :: Maybe T.Text }
   deriving (Show, Generic, Eq, ToJSON, FromJSON)
 
-data Board = Board { boardId    :: UUID
-                   , boardTitle :: Maybe T.Text
+data Board = Board { boardTitle :: Maybe T.Text
                    , date       :: Day
                    , items      :: [Item] }
   deriving (Show, Generic, Eq, ToJSON, FromJSON)
-
-data ItemCreation =
-  QuoteCreation { quoteTitle  :: Maybe T.Text
-                , content     :: T.Text
-                , quoteSource :: Maybe T.Text }
-  | ImageCreation { filepath    :: T.Text
-                  , imageSource :: Maybe T.Text }
-  deriving (Generic, Show, Eq, FromJSON)
-
-data BoardCreation =
-  BoardCreation { boardTitle :: Maybe T.Text
-                , date       :: Day
-                , items      :: [ItemCreation] }
-  deriving (Generic, Show, Eq, FromJSON)
 
 data BoardSummaryItem =
   BoardSummaryItem { date       :: Day
@@ -67,15 +46,6 @@ data BoardSummary =
   deriving (Generic, Show, Eq, ToJSON)
 
 
-itemToCreation :: Item -> ItemCreation
-itemToCreation Quote{..} = QuoteCreation{..}
-itemToCreation Image{..} = ImageCreation{..}
-
-boardToCreation :: Board -> BoardCreation
-boardToCreation (Board _ boardTitle date is) =
-  let items = itemToCreation <$> is
-  in BoardCreation{..}
-
 instance ToMarkup Item where
   toMarkup Quote{..} =
     H.div ! A.class_ "quote" $ do
@@ -83,4 +53,7 @@ instance ToMarkup Item where
        H.div ! A.class_ "quote-content" $
          p (toHtml content)
        maybe mempty ( (p ! A.class_ "quote-source") . toHtml) quoteSource
-  toMarkup Image{..} = undefined
+  toMarkup Image{..} =
+    H.div ! A.class_ "image" $ do
+      H.img ! A.src ("/static/" <> textValue filepath)
+      maybe mempty ( (p ! A.class_ "image-source") . toHtml) imageSource

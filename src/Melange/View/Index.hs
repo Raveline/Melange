@@ -17,8 +17,8 @@ dayToText :: Day -> Text
 dayToText = pack . show
 
 boardToTitle :: Board -> Text
-boardToTitle (Board _ Nothing day _) = dayToText day
-boardToTitle (Board _ (Just title') day _) =
+boardToTitle (Board Nothing day _) = dayToText day
+boardToTitle (Board (Just title') day _) =
   mconcat [ title'
           , " ("
           , dayToText day

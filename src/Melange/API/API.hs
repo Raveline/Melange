@@ -62,7 +62,7 @@ type Singulars = "board" :> Capture "date" Day :> (GetBoard :<|> PatchBoard :<|>
 type AddImage = "image" :> MultipartForm Mem (MultipartData Mem) :> Post '[JSON] FilePath
 
 type HomePage = Get '[HTML] IndexPage
-type NewBoard = ReqBody '[JSON] BoardCreation :> PostNoContent '[JSON] NoContent
+type NewBoard = ReqBody '[JSON] Board :> PostNoContent '[JSON] NoContent
 type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] BoardSummary
 type GetBoard = Get '[JSON] (Maybe Board)
 type PatchBoard = ReqBody '[JSON] Board :> PatchNoContent '[JSON] NoContent
@@ -99,7 +99,7 @@ renderHome :: MelangeHandler IndexPage
 renderHome =
   IndexPage <$> withPool getLatestBoard
 
-addBoard :: BoardCreation -> MelangeHandler NoContent
+addBoard :: Board -> MelangeHandler NoContent
 addBoard b =
   let onError = err422 { errBody = "There is a already a board with this date" }
   in NoContent <$ withPoolE AlreadyExists onError (newBoard b)

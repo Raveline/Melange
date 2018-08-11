@@ -23,9 +23,7 @@ import           Data.UUID.V4                (nextRandom)
 import           Melange.DB.Deletions        (removeBoardAtDay)
 import           Melange.DB.Schema           (Schema)
 import           Melange.DB.Types            (QueryException (..))
-import           Melange.Model               (Board (..), BoardCreation (..),
-                                              ItemCreation (..),
-                                              boardToCreation)
+import           Melange.Model               (Board (..), Item (..))
 import           Squeal.PostgreSQL           hiding (date)
 
 insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext ] '[]
@@ -80,14 +78,14 @@ insertBoardItem = insertRow #board_items
 deleteBoardItems :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
 deleteBoardItems = deleteFrom #board_items (#board_id .== param @1) (Returning Nil)
 
-newItem :: (MonadBaseControl IO m, MonadPQ Schema m) => ItemCreation -> m UUID
-newItem (QuoteCreation t c s) = do
+newItem :: (MonadBaseControl IO m, MonadPQ Schema m) => Item -> m UUID
+newItem (Quote t c s) = do
     quoteUUID <- liftBase nextRandom
     itemUUID <- liftBase nextRandom
     _ <- manipulateParams insertQuote (quoteUUID, t, c, s)
     _ <- manipulateParams insertQuoteItem (itemUUID, Just quoteUUID)
     pure itemUUID
-newItem (ImageCreation f s) = do
+newItem (Image f s) = do
     imageUUID <- liftBase nextRandom
     itemUUID <- liftBase nextRandom
     _ <- manipulateParams insertImage (imageUUID, f, s)
@@ -105,10 +103,10 @@ catchLift action onError =
 updateBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => Day -> Board -> m UUID
 updateBoard day updatedBoard = do
   removeBoardAtDay UpdateNonExistingEntity day
-  newBoard (boardToCreation updatedBoard)
+  newBoard updatedBoard
 
-newBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => BoardCreation -> m UUID
-newBoard BoardCreation{..} = (do
+newBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => Board -> m UUID
+newBoard Board {..} = (do
     boardId <- liftBase nextRandom
     transactionally_ $ do
       void $ manipulateParams insertBoard (boardId, boardTitle, date)

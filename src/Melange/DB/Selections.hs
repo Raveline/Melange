@@ -65,11 +65,11 @@ instance SOP.HasDatatypeInfo BoardQueryRow
 
 splitter :: BoardQueryRow -> (Board, (Maybe Item, Maybe Item))
 splitter BoardQueryRow{..} =
-  let board = Board boardId title date []
+  let board = Board title date []
       quote =
-        Quote <$> pure itemId <*> pure quoteTitle <*> content <*> pure quoteSource
+        Quote <$> pure quoteTitle <*> content <*> pure quoteSource
       image =
-        Image <$> pure itemId <*> filepath <*> pure imageSource
+        Image <$> filepath <*> pure imageSource
   in (board, (quote, image))
 
 joiner :: [(Board, (Maybe Item, Maybe Item))] -> Maybe Board
