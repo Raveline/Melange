@@ -29,6 +29,7 @@ melange staticDir = serve melangeAPI . API.server staticDir
 
 localhostCors :: CorsResourcePolicy
 localhostCors = simpleCorsResourcePolicy { corsOrigins = Just (["http://localhost:8080"], True)
+                                         , corsMethods = ["GET", "HEAD", "POST", "DELETE", "PATCH"]
                                          , corsRequestHeaders = ["Content-Type"] }
 
 corsMiddleware :: Middleware
