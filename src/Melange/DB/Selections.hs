@@ -164,7 +164,9 @@ selectSummaryPage off =
   select ( #boards ! #date
          :* #boards ! #title `As` #boardTitle
          :* Nil )
-  (from (table #boards) & limit (fromIntegral summaryPageSize) & offset off)
+  (from (table #boards)
+   & orderBy [(#boards ! #date) & Desc]
+   & limit (fromIntegral summaryPageSize) & offset off)
 
 countBoardsQuery :: Query Schema '[] '[ "fromOnly" :=> 'NotNull 'PGint8 ]
 countBoardsQuery =
@@ -175,13 +177,18 @@ countBoardsQuery =
 summaryPageSize :: Int
 summaryPageSize = 10
 
+pageCount :: Int -> Int
+pageCount n =
+  let ratio = (fromIntegral n :: Double) / (fromIntegral summaryPageSize :: Double)
+  in ceiling ratio
+
 countBoards :: (MonadBaseControl IO m, MonadPQ Schema m) => m Int64
 countBoards = fromOnly <$> (runQuery countBoardsQuery >>= getRow 0)
 
-getSummaryAtPage :: (MonadBaseControl IO m, MonadPQ Schema m) => Int -> m (Maybe BoardSummary)
+getSummaryAtPage :: (MonadBaseControl IO m, MonadPQ Schema m) => Int -> m BoardSummary
 getSummaryAtPage currentPage =
   let offset' = fromIntegral $ currentPage * summaryPageSize
       getItems = runQueryParams (selectSummaryPage offset') () >>= getRows
       getCount = fromIntegral <$> countBoards
-      numberOfPages = (`div` summaryPageSize) <$> getCount
-  in Just <$> (BoardSummary <$> getItems <*> pure currentPage <*> numberOfPages)
+      numberOfPages = pageCount <$> getCount
+  in BoardSummary <$> getItems <*> pure currentPage <*> numberOfPages

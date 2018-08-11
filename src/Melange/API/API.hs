@@ -63,7 +63,7 @@ type AddImage = "image" :> MultipartForm Mem (MultipartData Mem) :> Post '[JSON]
 
 type HomePage = Get '[HTML] IndexPage
 type NewBoard = ReqBody '[JSON] BoardCreation :> PostNoContent '[JSON] NoContent
-type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] (Maybe BoardSummary)
+type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] BoardSummary
 type GetBoard = Get '[JSON] (Maybe Board)
 type PatchBoard = ReqBody '[JSON] Board :> PatchNoContent '[JSON] NoContent
 type DeleteBoard = DeleteNoContent '[JSON] NoContent
@@ -104,7 +104,7 @@ addBoard b =
   let onError = err422 { errBody = "There is a already a board with this date" }
   in NoContent <$ withPoolE AlreadyExists onError (newBoard b)
 
-getBoards :: Int -> MelangeHandler (Maybe BoardSummary)
+getBoards :: Int -> MelangeHandler BoardSummary
 getBoards = withPool . getSummaryAtPage
 
 getBoard :: Day -> MelangeHandler (Maybe Board)
