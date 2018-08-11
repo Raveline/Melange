@@ -59,6 +59,11 @@ fixtureQuote4 =
     "The only joy in life is to begin"
     (Just "Cesar Pavese")
 
+fixtureImage1 :: ItemCreation
+fixtureImage1 =
+  ImageCreation
+    "Some filepath" (Just "Some source")
+
 fixtureBoard :: BoardCreation
 fixtureBoard =
   BoardCreation
@@ -72,6 +77,13 @@ fixtureBoard2 =
     (Just "On beginnings")
     (fromGregorian 2018 8 1)
     [fixtureQuote3, fixtureQuote4]
+
+fixtureBoard3 :: BoardCreation
+fixtureBoard3 =
+  BoardCreation
+    (Just "On images")
+    (fromGregorian 2000 1 1)
+    [fixtureImage1]
 
 shouldCorrespondTo :: (HasCallStack) => Maybe Board -> BoardCreation -> Expectation
 shouldCorrespondTo Nothing _ = expectationFailure "Query had no result"
@@ -185,6 +197,12 @@ main = hspec $ before_ setupDB $ after_ dropDB $ do
       let getBoardTitle :: Board -> Maybe Text
           getBoardTitle Board{..} = boardTitle
       (updatedBoard >>= getBoardTitle) `shouldBe` (Just "Updated title")
+
+    it "Boards can contain images too" $ do
+     queriedBoard <- withConnection connectionString $ do
+       void $ newBoard fixtureBoard3
+       getLatestBoard
+     queriedBoard `shouldCorrespondTo` fixtureBoard3
 
   describe "Creation items" $
     it "Can be read from JSON" $

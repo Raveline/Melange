@@ -92,7 +92,7 @@ newItem (ImageCreation f s) = do
     itemUUID <- liftBase nextRandom
     _ <- manipulateParams insertImage (imageUUID, f, s)
     _ <- manipulateParams insertImageItem (itemUUID, Just imageUUID)
-    pure imageUUID
+    pure itemUUID
 
 handler :: (MonadPQ Schema m, MonadBaseControl IO m) => ErrorCall -> m a
 handler _ = liftBase $ throwIO AlreadyExists
