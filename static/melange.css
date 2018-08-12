@@ -1,10 +1,37 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.header {
+    display: flex;
+    margin: auto;
+    justify-content: center;
+}
+
+a.previous, a.next {
+    font-size: 2rem;
+    color:white;
+    text-decoration: none;
+}
+
 h1 {
   font-size: 2rem;
   text-align: center;
+  margin: 0rem 1rem;
+  flex: 2;
 }
 
 .quote {
     width: 30%;
+    margin: 1em;
+    padding: .2em;
+}
+
+.header {
+    background-color: #4b636e;
+    border-bottom: solid 2px #a7c0cd;
+    color: #fff;
 }
 
 .quote-title {
