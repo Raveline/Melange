@@ -32,12 +32,14 @@ type QuoteCols =
        , "quote_title" ::: 'NoDef :=> 'Null 'PGtext
        , "content"   ::: 'NoDef :=> 'NotNull 'PGtext
        , "quote_source" ::: 'NoDef :=> 'Null 'PGtext
+       , "quote_style" ::: 'NoDef :=> 'Null 'PGtext
        ]
 
 type ImageCols =
       '[ "image_id" ::: 'NoDef :=> 'NotNull 'PGuuid
        , "filepath"   :::   'NoDef :=> 'NotNull 'PGtext
        , "image_source" ::: 'NoDef :=> 'Null 'PGtext
+       , "image_style" ::: 'NoDef :=> 'Null 'PGtext
        ]
 
 type ItemCols =
@@ -81,6 +83,7 @@ initial =
         :* (text & nullable) `As` #quote_title
         :* (text & notNullable) `As` #content
         :* (text & nullable) `As` #quote_source
+        :* (text & nullable) `As` #quote_style
         :* Nil
       )
       ( primaryKey #quote_id `As` #pk_quote :* Nil )
@@ -88,6 +91,7 @@ initial =
       (    (uuid & notNullable) `As` #image_id
         :* (text & notNullable) `As` #filepath
         :* (text & nullable) `As` #image_source
+        :* (text & nullable) `As` #image_style
         :* Nil
       )
       ( primaryKey #image_id `As` #pk_image :* Nil )

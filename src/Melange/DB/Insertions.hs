@@ -26,12 +26,13 @@ import           Melange.DB.Types            (QueryException (..))
 import           Melange.Model               (Board (..), Item (..))
 import           Squeal.PostgreSQL           hiding (date)
 
-insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext ] '[]
+insertQuote :: Manipulation Schema '[ 'NotNull 'PGuuid, 'Null 'PGtext, 'NotNull 'PGtext, 'Null 'PGtext, 'Null 'PGtext ] '[]
 insertQuote = insertRow #quotes
     ( Set (param @1) `As` #quote_id
     :* Set (param @2) `As` #quote_title
     :* Set (param @3) `As` #content
     :* Set (param @4) `As` #quote_source
+    :* Set (param @5) `As` #quote_style
     :* Nil )
     OnConflictDoNothing (Returning Nil)
 
@@ -43,11 +44,12 @@ insertQuoteItem = insertRow #items
     :* Nil )
     OnConflictDoNothing (Returning Nil)
 
-insertImage :: Manipulation Schema '[ 'NotNull 'PGuuid, 'NotNull 'PGtext, 'Null 'PGtext ] '[]
+insertImage :: Manipulation Schema '[ 'NotNull 'PGuuid, 'NotNull 'PGtext, 'Null 'PGtext, 'Null 'PGtext ] '[]
 insertImage = insertRow #images
     ( Set (param @1) `As` #image_id
     :* Set (param @2) `As` #filepath
     :* Set (param @3) `As` #image_source
+    :* Set (param @4) `As` #image_style
     :* Nil )
     OnConflictDoNothing (Returning Nil)
 
@@ -79,16 +81,16 @@ deleteBoardItems :: Manipulation Schema '[ 'NotNull 'PGuuid ] '[]
 deleteBoardItems = deleteFrom #board_items (#board_id .== param @1) (Returning Nil)
 
 newItem :: (MonadBaseControl IO m, MonadPQ Schema m) => Item -> m UUID
-newItem (Quote t c s) = do
+newItem (Quote t c so st) = do
     quoteUUID <- liftBase nextRandom
     itemUUID <- liftBase nextRandom
-    _ <- manipulateParams insertQuote (quoteUUID, t, c, s)
+    _ <- manipulateParams insertQuote (quoteUUID, t, c, so, st)
     _ <- manipulateParams insertQuoteItem (itemUUID, Just quoteUUID)
     pure itemUUID
-newItem (Image f s) = do
+newItem (Image f so st) = do
     imageUUID <- liftBase nextRandom
     itemUUID <- liftBase nextRandom
-    _ <- manipulateParams insertImage (imageUUID, f, s)
+    _ <- manipulateParams insertImage (imageUUID, f, so, st)
     _ <- manipulateParams insertImageItem (itemUUID, Just imageUUID)
     pure itemUUID
 

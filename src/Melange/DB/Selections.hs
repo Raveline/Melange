@@ -46,8 +46,10 @@ type BoardQueryResult =
   , "quoteTitle" ::: 'Null 'PGtext
   , "content"   ::: 'Null 'PGtext
   , "quoteSource" ::: 'Null 'PGtext
+  , "quoteStyle" ::: 'Null 'PGtext
   , "filepath"   :::  'Null 'PGtext
   , "imageSource" ::: 'Null 'PGtext
+  , "imageStyle" ::: 'Null 'PGtext
   ]
 
 type SummaryPageResult =
@@ -64,8 +66,11 @@ data BoardQueryRow = BoardQueryRow
   , quoteTitle  :: Maybe Text
   , content     :: Maybe Text
   , quoteSource :: Maybe Text
+  , quoteStyle  :: Maybe Text
   , filepath    :: Maybe Text
-  , imageSource :: Maybe Text }
+  , imageSource :: Maybe Text
+  , imageStyle  :: Maybe Text
+  }
   deriving (Generic, Show)
 
 instance SOP.Generic BoardQueryRow
@@ -75,9 +80,9 @@ splitter :: BoardQueryRow -> (Board, (Maybe Item, Maybe Item))
 splitter BoardQueryRow{..} =
   let board = Board title date []
       quote =
-        Quote <$> pure quoteTitle <*> content <*> pure quoteSource
+        Quote <$> pure quoteTitle <*> content <*> pure quoteSource <*> pure quoteStyle
       image =
-        Image <$> filepath <*> pure imageSource
+        Image <$> filepath <*> pure imageSource <*> pure imageStyle
   in (board, (quote, image))
 
 joiner :: [(Board, (Maybe Item, Maybe Item))] -> Maybe Board
@@ -107,11 +112,13 @@ type  BoardSelection  =
       '[ "quote_id" ::: 'Null 'PGuuid
        , "quote_title" ::: 'Null 'PGtext
        , "content" ::: 'Null 'PGtext
-       , "quote_source" ::: 'Null 'PGtext]
+       , "quote_source" ::: 'Null 'PGtext
+       , "quote_style" ::: 'Null 'PGtext]
     , "im" :::
       '["image_id" ::: 'Null 'PGuuid
        , "filepath" ::: 'Null 'PGtext
-       , "image_source" ::: 'Null 'PGtext]
+       , "image_source" ::: 'Null 'PGtext
+       , "image_style" ::: 'Null 'PGtext]
     ]
 
 boardTables :: FromClause Schema (param :: [NullityType]) BoardSelection
@@ -131,8 +138,10 @@ boardFields =
      :* #q ! #quote_title `As` #quoteTitle
      :* #q ! #content
      :* #q ! #quote_source `As` #quoteSource
+     :* #q ! #quote_style `As` #quoteStyle
      :* #im ! #filepath
      :* #im ! #image_source `As` #imageSource
+     :* #im ! #image_style `As` #imageStyle
      :* Nil
 
 selectBoardByDay :: BoardQuery '[ 'NotNull 'PGdate ]

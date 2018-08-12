@@ -17,9 +17,13 @@ import qualified Text.Blaze.Html5.Attributes as A
 
 data Item = Quote { quoteTitle  :: Maybe Text
                   , content     :: Text
-                  , quoteSource :: Maybe Text }
+                  , quoteSource :: Maybe Text
+                  , quoteStyle  :: Maybe Text
+                  }
           | Image { filepath    :: Text
-                  , imageSource :: Maybe Text }
+                  , imageSource :: Maybe Text
+                  , imageStyle  :: Maybe Text
+                  }
   deriving (Show, Generic, Eq, ToJSON, FromJSON)
 
 data Board = Board { boardTitle :: Maybe Text
