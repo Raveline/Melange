@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedLabels    #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
@@ -13,11 +14,14 @@ module Melange.DB.Selections
     getBoardByDay
   , getLatestBoard
   , getSummaryAtPage
+  , getBoardNavigationAt
+  , getBoardPage
+  , nextAndPrevious
   ) where
 
 import           Control.Monad.Trans.Control
 import           Data.Int                    (Int64)
-import           Data.Maybe                  (catMaybes)
+import           Data.Maybe                  (catMaybes, fromMaybe)
 import           Data.Text                   (Text)
 import           Data.Time                   (Day)
 import           Data.UUID                   (UUID)
@@ -25,8 +29,12 @@ import           Data.Word                   (Word64)
 import qualified Generics.SOP                as SOP
 import           GHC.Generics                hiding (from)
 import           Melange.DB.Schema
-import           Melange.Model               (Board (..), BoardSummary (..),
-                                              Item (..))
+import           Melange.Model               (Board (..), Item (..))
+import qualified Melange.Model.Navigation    as N (BoardNavigation (..),
+                                                   emptyNavigation)
+import qualified Melange.Model.Summary       as S (BoardSummary (..))
+import           Melange.View.Index          (BoardPage (..))
+import           Safe                        (headMay)
 import           Squeal.PostgreSQL           hiding (date)
 
 type BoardQueryResult =
@@ -156,7 +164,7 @@ getBoardByDay day = do
 
 getLatestBoard :: (MonadBaseControl IO m, MonadPQ Schema m) => m (Maybe Board)
 getLatestBoard = do
-  res <- runQueryParams selectLatestBoard ()
+  res <- runQuery selectLatestBoard
   joiner . fmap splitter <$> getRows res
 
 selectSummaryPage :: Word64 -> Query Schema '[] SummaryPageResult
@@ -185,10 +193,54 @@ pageCount n =
 countBoards :: (MonadBaseControl IO m, MonadPQ Schema m) => m Int64
 countBoards = fromOnly <$> (runQuery countBoardsQuery >>= getRow 0)
 
-getSummaryAtPage :: (MonadBaseControl IO m, MonadPQ Schema m) => Int -> m BoardSummary
+getSummaryAtPage :: (MonadBaseControl IO m, MonadPQ Schema m) => Int -> m S.BoardSummary
 getSummaryAtPage currentPage =
   let offset' = fromIntegral $ currentPage * summaryPageSize
       getItems = runQueryParams (selectSummaryPage offset') () >>= getRows
       getCount = fromIntegral <$> countBoards
       numberOfPages = pageCount <$> getCount
-  in BoardSummary <$> getItems <*> pure currentPage <*> numberOfPages
+  in S.BoardSummary <$> getItems <*> pure currentPage <*> numberOfPages
+
+type NextAndPrevious =
+  [
+    "previous" ::: 'Null 'PGdate
+  , "next" ::: 'Null 'PGdate
+  ]
+
+type ChronosReturnType =
+  ("ref" ::: 'NotNull 'PGdate) ': NextAndPrevious
+
+getBoardNavigationAt :: (MonadBaseControl IO m, MonadPQ Schema m) => Board -> m N.BoardNavigation
+getBoardNavigationAt (Board _ d _) =
+  let fromNoNav = fromMaybe N.emptyNavigation
+  in fromNoNav . headMay <$> (runQueryParams nextAndPrevious (Only d) >>= getRows)
+
+nextAndPrevious :: Query Schema '[ 'NotNull 'PGdate ] NextAndPrevious
+nextAndPrevious =
+  select
+    ( #chronos ! #previous
+    :* #chronos ! #next
+    :* Nil )
+    (from (subquery (chronos `As` #chronos)) & where_ (#chronos ! #ref .== param @1))
+
+chronos :: Query Schema '[ 'NotNull 'PGdate ] ChronosReturnType
+chronos =
+ select
+   ( #boards ! #date `As` #ref
+   :* previousWF `As` #previous
+   :* nextWF `As` #next
+   :* Nil)
+   (from (table #boards))
+
+nextWF :: Expression schema relations grouping params ty
+nextWF = UnsafeExpression " lag(date) over (order by date asc rows between current row and unbounded following)"
+
+previousWF :: Expression schema relations grouping params ty
+previousWF = UnsafeExpression " lead(date) over (order by date asc rows between current row and unbounded following)"
+
+getBoardPage :: (MonadBaseControl IO m, MonadPQ Schema m) =>
+  m (Maybe Board) -> m BoardPage
+getBoardPage query = do
+  foundBoard <- query
+  maybe (pure $ BoardPage Nothing N.emptyNavigation)
+    (fmap (BoardPage foundBoard) . getBoardNavigationAt) foundBoard

@@ -33,6 +33,7 @@ dependencies:
 - monad-control
 - http-media
 - postgresql-simple
+- safe
 - safe-exceptions
 - servant
 - servant-server

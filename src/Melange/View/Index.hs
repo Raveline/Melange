@@ -2,16 +2,17 @@
 {-# LANGUAGE RecordWildCards   #-}
 module Melange.View.Index
   (
-    IndexPage (..)
+    BoardPage (..)
   ) where
 
 import           Data.Text                   (Text, pack)
 import           Data.Time                   (Day)
 import           Melange.Model               (Board (..))
+import qualified Melange.Model.Navigation    as N (BoardNavigation (..))
 import           Text.Blaze.Html5            as H
 import qualified Text.Blaze.Html5.Attributes as A
 
-newtype IndexPage = IndexPage (Maybe Board)
+data BoardPage = BoardPage (Maybe Board) N.BoardNavigation
 
 dayToText :: Day -> Text
 dayToText = pack . show
@@ -37,12 +38,17 @@ melangeTitle = H.title "Melange"
 linkCSS :: Html
 linkCSS = H.link ! A.rel "stylesheet" ! A.href "/static/melange.css" ! A.type_ "text/css"
 
-instance ToMarkup IndexPage where
-  toMarkup (IndexPage Nothing) = page $ p "There is nothing to display."
+linkToBoard :: AttributeValue -> Html -> Day -> Html
+linkToBoard className content d = a ! A.class_ className ! A.href (textValue  . dayToText $ d) $ content
 
-  toMarkup (IndexPage (Just bo@Board{..}))=
+instance ToMarkup BoardPage where
+  toMarkup (BoardPage Nothing _) = page $ p "There is nothing to display."
+
+  toMarkup (BoardPage (Just bo@Board{..}) N.BoardNavigation{..})=
     page $ do
-      H.div ! A.class_ "header" $
+      H.div ! A.class_ "header" $ do
+        maybe mempty (linkToBoard "previous" "<<<") previous
         h1 (toHtml . boardToTitle $ bo)
-      H.div $
+        maybe mempty (linkToBoard "next" ">>>") next
+      H.div ! A.class_ "board-content" $
         mapM_ toMarkup items

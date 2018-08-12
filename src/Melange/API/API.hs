@@ -12,25 +12,25 @@ module Melange.API.API
   , MelangePool
   ) where
 
-import           Control.Exception.Safe                hiding (Handler)
-import           Control.Monad                         (void)
-import           Control.Monad.IO.Class                (liftIO)
-import           Control.Monad.Reader                  (ReaderT, ask,
-                                                        runReaderT)
-import qualified Data.ByteString.Lazy                  as LBS
+import           Control.Exception.Safe        hiding (Handler)
+import           Control.Monad                 (void)
+import           Control.Monad.IO.Class        (liftIO)
+import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
+import qualified Data.ByteString.Lazy          as LBS
 import           Data.Proxy
 import           Data.Time
-import           Data.UUID.V4                          (nextRandom)
+import           Data.UUID.V4                  (nextRandom)
 import           Generics.SOP.BasicFunctors
 import           Melange.DB.Deletions
 import           Melange.DB.Insertions
 import           Melange.DB.Schema
 import           Melange.DB.Selections
 import           Melange.DB.Types
-import           Melange.Image                         (findExtension)
+import           Melange.Image                 (findExtension)
 import           Melange.Model
+import qualified Melange.Model.Summary         as S
 import           Melange.View.Index
-import           Network.HTTP.Media                    ((//), (/:))
+import           Network.HTTP.Media            ((//), (/:))
 import           Servant
 import           Servant.Multipart
 import           Squeal.PostgreSQL.Pool
@@ -55,15 +55,16 @@ withPoolE qe onError query = do
       Left e  -> if e == qe then throwError onError else throwError err500
 
 type API =
-  ("melange" :> (Plurals :<|> Singulars :<|> AddImage)) :<|> HomePage :<|> StaticFiles
+  ("melange" :> (Plurals :<|> Singulars :<|> AddImage)) :<|> HomePage :<|> BoardAt :<|> StaticFiles
 
 type Plurals = "boards" :> (NewBoard :<|> GetBoards)
 type Singulars = "board" :> Capture "date" Day :> (GetBoard :<|> PatchBoard :<|> DeleteBoard)
 type AddImage = "image" :> MultipartForm Mem (MultipartData Mem) :> Post '[JSON] FilePath
 
-type HomePage = Get '[HTML] IndexPage
+type HomePage = Get '[HTML] BoardPage
+type BoardAt = Capture "date" Day :> Get '[HTML] BoardPage
 type NewBoard = ReqBody '[JSON] Board :> PostNoContent '[JSON] NoContent
-type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] BoardSummary
+type GetBoards = "all" :> Capture "page" Int :> Get '[JSON] S.BoardSummary
 type GetBoard = Get '[JSON] (Maybe Board)
 type PatchBoard = ReqBody '[JSON] Board :> PatchNoContent '[JSON] NoContent
 type DeleteBoard = DeleteNoContent '[JSON] NoContent
@@ -79,7 +80,10 @@ server staticDir pool =
       singular day = (getBoard day :<|> patchBoard day :<|> deleteBoard day)
       staticFiles = serveDirectoryWebApp staticDir
       uploadImage = saveImage staticDir
-  in hoistServer melangeAPI nat ((plural :<|> singular :<|> uploadImage) :<|> renderHome :<|> staticFiles)
+  in hoistServer melangeAPI nat ((plural :<|> singular :<|> uploadImage)
+                                 :<|> renderHome
+                                 :<|> renderAt
+                                 :<|> staticFiles)
 
 saveImage :: FilePath -> MultipartData Mem -> MelangeHandler FilePath
 saveImage staticDir mpData = do
@@ -95,16 +99,19 @@ saveImage staticDir mpData = do
         void $ filepath' <$ liftIO (LBS.writeFile filepath' payload)
         pure finalPath
 
-renderHome :: MelangeHandler IndexPage
+renderHome :: MelangeHandler BoardPage
 renderHome =
-  IndexPage <$> withPool getLatestBoard
+  withPool $ getBoardPage getLatestBoard
+
+renderAt :: Day -> MelangeHandler BoardPage
+renderAt = withPool . getBoardPage . getBoardByDay
 
 addBoard :: Board -> MelangeHandler NoContent
 addBoard b =
   let onError = err422 { errBody = "There is a already a board with this date" }
   in NoContent <$ withPoolE AlreadyExists onError (newBoard b)
 
-getBoards :: Int -> MelangeHandler BoardSummary
+getBoards :: Int -> MelangeHandler S.BoardSummary
 getBoards = withPool . getSummaryAtPage
 
 getBoard :: Day -> MelangeHandler (Maybe Board)
