@@ -42,4 +42,5 @@ initDB = do
   void $ withConnection connectionString $
     manipulate (UnsafeManipulation "SET client_min_messages TO WARNING;")
     & pqThen (migrateUp $ single setup)
+    & pqThen (migrateUp $ single migration1)
   putStrLn "Finished"
