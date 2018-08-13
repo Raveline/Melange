@@ -46,7 +46,7 @@ instance ToMarkup BoardPage where
 
   toMarkup (BoardPage (Just bo@Board{..}) N.BoardNavigation{..})=
     page $ do
-      H.div ! A.class_ "header" $ do
+      H.div ! A.class_ "header secondClass" $ do
         maybe mempty (linkToBoard "previous" "<<<") previous
         h1 (toHtml . boardToTitle $ bo)
         maybe mempty (linkToBoard "next" ">>>") next

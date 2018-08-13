@@ -31,14 +31,19 @@ data Board = Board { boardTitle :: Maybe Text
                    , items      :: [Item] }
   deriving (Show, Generic, Eq, ToJSON, FromJSON)
 
+itemDiv :: Maybe Text -> Text -> (Html -> Html)
+itemDiv styl def =
+  let classes = maybe def ( (def <> " ") <>) styl
+  in H.div ! A.class_ (textValue classes)
+
 instance ToMarkup Item where
   toMarkup Quote{..} =
-    H.div ! A.class_ "quote" $ do
+    itemDiv quoteStyle "quote" $ do
        maybe mempty ( (h2 ! A.class_ "quote-title") . toHtml) quoteTitle
        H.div ! A.class_ "quote-content" $
          p (toHtml content)
        maybe mempty ( (p ! A.class_ "quote-source") . toHtml) quoteSource
   toMarkup Image{..} =
-    H.div ! A.class_ "image" $ do
+    itemDiv imageStyle "image" $ do
       H.img ! A.src ("/static/" <> textValue filepath)
       maybe mempty ( (p ! A.class_ "image-source") . toHtml) imageSource
