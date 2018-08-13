@@ -15,6 +15,15 @@ a.previous, a.next {
     text-decoration: none;
 }
 
+.board-content {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+img {
+    max-height: 400px;
+}
+
 h1 {
   font-size: 2rem;
   text-align: center;
