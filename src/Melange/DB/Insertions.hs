@@ -95,7 +95,7 @@ newItem (Image f so st) = do
     pure itemUUID
 
 handler :: (MonadPQ Schema m, MonadBaseControl IO m) => ErrorCall -> m a
-handler _ = liftBase $ throwIO AlreadyExists
+handler e = liftBase $ print e >> throwIO AlreadyExists
 
 catchLift :: (Exception e, MonadPQ Schema m, MonadBaseControl IO m) => m a -> (e -> m a) -> m a
 catchLift action onError =
