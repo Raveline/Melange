@@ -37,12 +37,14 @@ fixtureQuote1 =
     Nothing
     "Happy families are all alike; every unhappy family is unhappy in its own way"
     Nothing
+    Nothing
 
 fixtureQuote2 :: Item
 fixtureQuote2 =
   Quote
     (Just "Oscar being Oscar")
     "To lose one parent may be regarded as a misfortune; to lose both looks like carelessness."
+    Nothing
     Nothing
 
 fixtureQuote3 :: Item
@@ -51,6 +53,7 @@ fixtureQuote3 =
     Nothing
     "The beginnings of all things are small."
     (Just "Cicero")
+    (Just "aClass")
 
 fixtureQuote4 :: Item
 fixtureQuote4 =
@@ -58,11 +61,12 @@ fixtureQuote4 =
     Nothing
     "The only joy in life is to begin"
     (Just "Cesar Pavese")
+    (Just "anotherClass")
 
 fixtureImage1 :: Item
 fixtureImage1 =
   Image
-    "Some filepath" (Just "Some source")
+    "Some filepath" (Just "Some source") Nothing
 
 fixtureBoard :: Board
 fixtureBoard =
@@ -137,12 +141,14 @@ exampleJsonSource =
 setupDB :: IO ()
 setupDB = void . withConnection connectionString $
   manipulate (UnsafeManipulation "SET client_min_messages = error;")
-  & pqThen $ migrateUp $ single setup
+  & pqThen (migrateUp $ single setup)
+  & pqThen (migrateUp $ single migration1)
 
 dropDB :: IO ()
 dropDB = void . withConnection connectionString $
   manipulate (UnsafeManipulation "SET client_min_messages = error;")
-  & pqThen $ migrateDown $ single setup
+  & pqThen (migrateDown $ single migration1)
+  & pqThen (migrateDown $ single setup)
 
 boardDate :: Board -> Day
 boardDate Board{..} = date
@@ -203,4 +209,3 @@ main = hspec $ before_ setupDB $ after_ dropDB $ do
     it "Can be read from JSON" $
       let decoded = eitherDecode exampleJsonSource :: Either String Board
       in decoded `shouldSatisfy` isRight
-
