@@ -1,0 +1,20 @@
+language: nix
+
+cache:
+  directories:
+    - $HOME/.stack
+    - /nix/store
+
+addons:
+  postgresql: "9.5"
+
+before_install:
+  - nix-env -i stack
+  - psql -c "CREATE ROLE melange WITH PASSWORD 'melange' LOGIN;" -U postgres
+  - psql -c 'CREATE DATABASE melangetest OWNER melange;' -U postgres
+
+script:
+  - stack --nix --no-terminal test
+
+notifications:
+  email: false
