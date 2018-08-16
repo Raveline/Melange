@@ -1,5 +1,9 @@
 # Melange
 
+## Status
+
+[![Build status](https://travis-ci.org/Raveline/Melange.svg?branch=master)](https://travis-ci.org/Raveline/Melange)
+
 ## Purpose
 
 Melange is a blogging platform loosely inspired by Aby Warbur's Mnemosyne Atlas.
