@@ -69,3 +69,4 @@ extra-deps:
 nix:
   enable: true
   packages: [postgresql95, zlib]
+  pure: false
