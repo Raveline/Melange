@@ -126,8 +126,8 @@ boardTables =
   table (#boards `As` #b)
     & innerJoin (table (#board_items `As` #bi)) (#b ! #board_id .== #bi ! #board_id)
     & innerJoin (table (#items `As` #it)) (#it ! #item_id .== #bi ! #item_id)
-    & leftOuterJoin (table (#quotes `As` #q)) (fromNull false (#it ! #quote_id .== notNull (#q ! #quote_id)))
-    & leftOuterJoin (table (#images `As` #im)) (fromNull false (#it ! #image_id .== notNull (#im ! #image_id)))
+    & leftOuterJoin (table (#quotes `As` #q)) (#it ! #quote_id .== notNull (#q ! #quote_id))
+    & leftOuterJoin (table (#images `As` #im)) (#it ! #image_id .== notNull (#im ! #image_id))
 
 boardFields :: NP (Aliased (Expression Schema (Join BoardSelection a) 'Ungrouped param)) BoardQueryResult
 boardFields =
