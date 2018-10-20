@@ -33,7 +33,7 @@ type BoardTable =
 
 type QuoteTable =
   '[ "pk_quote" ::: 'PrimaryKey '["quote_id"]
-   ] :=> 
+   ] :=>
   '[ "quote_id" ::: 'NoDef :=> 'NotNull 'PGuuid
    , "quote_title" ::: 'NoDef :=> 'Null 'PGtext
    , "content"   ::: 'NoDef :=> 'NotNull 'PGtext
@@ -41,16 +41,9 @@ type QuoteTable =
    ]
 
 type QuoteTableMig1 =
-  "quotes" ::: 'Table (
-    '[ "pk_quote" ::: 'PrimaryKey '["quote_id"]
-     ] :=> QuoteColsMig1)
-
-type QuoteColsMig1 =
-  '[ "quote_id" ::: 'NoDef :=> 'NotNull 'PGuuid
-   , "quote_title" ::: 'NoDef :=> 'Null 'PGtext
-   , "content"   ::: 'NoDef :=> 'NotNull 'PGtext
-   , "quote_source" ::: 'NoDef :=> 'Null 'PGtext
-   , "quote_style" ::: 'NoDef :=> 'Null 'PGtext ]
+  '[ "pk_quote" ::: 'PrimaryKey '["quote_id"]
+   ] :=>
+  Create "quote_style" ('NoDef :=> 'Null 'PGtext) (TableToColumns QuoteTable)
 
 type ImageTable =
   '[ "pk_image" ::: 'PrimaryKey '["image_id"]
@@ -60,16 +53,10 @@ type ImageTable =
    , "image_source" ::: 'NoDef :=> 'Null 'PGtext
    ]
 
-type ImageColsMig1 =
-  '[ "image_id" ::: 'NoDef :=> 'NotNull 'PGuuid
-   , "filepath"   :::   'NoDef :=> 'NotNull 'PGtext
-   , "image_source" ::: 'NoDef :=> 'Null 'PGtext
-   , "image_style" ::: 'NoDef :=> 'Null 'PGtext ]
-
 type ImageTableMig1 =
-  "images" ::: 'Table (
-    '[ "pk_image" ::: 'PrimaryKey '["image_id"]
-     ] :=> ImageColsMig1)
+  '[ "pk_image" ::: 'PrimaryKey '["image_id"]
+   ] :=>
+  Create "image_style" ('NoDef :=> 'Null 'PGtext) (TableToColumns ImageTable)
 
 type ItemsTable =
   '[ "pk_item" ::: 'PrimaryKey '["item_id"]
@@ -92,20 +79,18 @@ type BoardItemTable =
    ]
 
 type BaseSchema =
-  '[ "quotes" ::: 'Table(QuoteTable)
-   , "images" ::: 'Table(ImageTable)
-   , "items" ::: 'Table(ItemsTable)
-   , "boards" ::: 'Table(BoardTable)
-   , "board_items" ::: 'Table(BoardItemTable)
+  '[ "quotes" ::: 'Table QuoteTable
+   , "images" ::: 'Table ImageTable
+   , "items" ::: 'Table ItemsTable
+   , "boards" ::: 'Table BoardTable
+   , "board_items" ::: 'Table BoardItemTable
    ]
 
-type Migration1 =
-    '[ QuoteTableMig1
-     , ImageTableMig1
-     , "items" ::: 'Table(ItemsTable)
-     , "boards" ::: 'Table(BoardTable)
-     , "board_items" ::: 'Table(BoardItemTable)
-     ]
+type Migration1a =
+  Alter "quotes" ('Table QuoteTableMig1) BaseSchema
+
+type Migration1b =
+  Alter "images" ('Table ImageTableMig1) Migration1a
 
 setup :: Migration IO '[] BaseSchema
 setup =
@@ -173,18 +158,18 @@ teardown =
   >>> dropTable #quotes
   >>> dropTable #images
 
-migration1 :: Migration IO BaseSchema Migration1
+migration1 :: Migration IO BaseSchema Migration1b
 migration1 =
   Migration { name = "Add styles"
             , up = void $ define up1
             , down = void $ define down1 }
 
-up1 :: Definition BaseSchema Migration1
+up1 :: Definition BaseSchema Migration1b
 up1 = alterTable #quotes (addColumn #quote_style (text & nullable))
      >>> alterTable #images (addColumn #image_style (text & nullable))
 
-down1 :: Definition Migration1 BaseSchema
+down1 :: Definition Migration1b BaseSchema
 down1 = alterTable #quotes (dropColumn #quote_style)
         >>> alterTable #images (dropColumn #image_style)
 
-type Schema = Migration1
+type Schema = Migration1b
