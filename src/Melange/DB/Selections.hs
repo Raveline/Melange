@@ -96,18 +96,9 @@ type BoardQuery params = Query Schema params BoardQueryResult
 
 type  BoardSelection  =
     '[
-     "b" :::
-      '["board_id" ::: 'NotNull 'PGuuid,
-        "title" ::: 'Null 'PGtext,
-        "date" ::: 'NotNull 'PGdate]
-    , "bi" :::
-      '["board_id" ::: 'NotNull 'PGuuid
-       , "item_id" ::: 'NotNull 'PGuuid
-       , "order" ::: 'NotNull 'PGint2]
-    , "it" :::
-      '["item_id" ::: 'NotNull 'PGuuid
-       , "quote_id" ::: 'Null 'PGuuid
-       , "image_id" ::: 'Null 'PGuuid]
+      "b" ::: TableToRow BoardTable
+    , "bi" ::: TableToRow BoardItemsTable
+    , "it" ::: TableToRow ItemsTable
     , "q" :::
       '[ "quote_id" ::: 'Null 'PGuuid
        , "quote_title" ::: 'Null 'PGtext

@@ -11,7 +11,9 @@ module Melange.DB.Schema
   , QuoteTable
   , ImageTable
   , ItemsTable
-  , BoardItemTable
+  , BoardItemsTable
+  , QuoteTableMig1
+  , ImageTableMig1
   , setup
   , teardown
   , initial
@@ -68,7 +70,7 @@ type ItemsTable =
    , "image_id" ::: 'NoDef :=> 'Null 'PGuuid
    ]
 
-type BoardItemTable =
+type BoardItemsTable =
   '[ "pk_board_item" ::: 'PrimaryKey '["board_id", "item_id"]
    , "fk_board_id" ::: 'ForeignKey '["board_id"] "boards" '["board_id"]
    , "fk_item_id" ::: 'ForeignKey '["item_id"] "items" '["item_id"]
@@ -83,7 +85,7 @@ type BaseSchema =
    , "images" ::: 'Table ImageTable
    , "items" ::: 'Table ItemsTable
    , "boards" ::: 'Table BoardTable
-   , "board_items" ::: 'Table BoardItemTable
+   , "board_items" ::: 'Table BoardItemsTable
    ]
 
 type Migration1a =
